@@ -8,10 +8,17 @@ use App\Models\CustomField;
 use App\Exports\ProductServiceExport;
 use App\Imports\ProductServiceImport;
 use App\Models\Product;
+use App\Models\Specification;
+use App\Models\InvoiceProduct;
+use App\Models\SpecificationCodeMaterial;
+use App\Models\SpecificationCodeOrder;
+use Carbon\Carbon;
 use App\Models\ProductService;
 use App\Models\ProductServiceCategory;
 use App\Models\ProductServiceUnit;
 use App\Models\Tax;
+use App\Models\Group;
+use App\Models\Invoice;
 use App\Models\User;
 use App\Models\Utility;
 use App\Models\Vender;
@@ -35,18 +42,47 @@ class ProductServiceController extends Controller
         {
             $category = ProductServiceCategory::where('created_by', '=', \Auth::user()->creatorId())->where('type', '=', 'product & service')->get()->pluck('name', 'id');
             $category->prepend('Select Category', '');
-
+            $users = User::where('type', '=', 'client')->get()->pluck('name', 'id');
+            $users->prepend(__('Assigned to'), ''); 
+             $orderstatuss = [
+                    
+                     'Received',
+                     'Testing',
+                     'Repairing',
+                     'Dispatch',
+                     'Resolved'
+                     ];
+           
+            $translatedTexts = __('Order Status');
+            $orderstatus = collect([$translatedTexts])->merge($orderstatuss);
+            $ticketstatuss = [
+                'Open',
+                'Hold',
+                'On-Going',
+                'Closed'
+            ];
+            
+            $translatedText = __('Ticket Status');
+            $ticketstatus = collect([$translatedText])->merge($ticketstatuss);
+            $ticketpriority = [
+                 'Low',
+                 'Medium',
+                 'High'
+                 
+                 ];
+            collect($ticketpriority)->prepend(__('Ticket Priority'), '');
+            $date = '';
             if(!empty($request->category))
             {
 
-                $productServices = ProductService::where('created_by', '=', \Auth::user()->creatorId())->where('category_id', $request->category)->with(['category','unit'])->get();
+                $productServices = ProductService::where('created_by', '=', \Auth::user()->creatorId())->where('category_id', $request->category)->with(['category','unit','code','group','material'])->get();
             }
             else
             {
-                $productServices = ProductService::where('created_by', '=', \Auth::user()->creatorId())->with(['category','unit'])->get();
+                $productServices = ProductService::where('created_by', '=', \Auth::user()->creatorId())->with(['category','unit','code','group','material'])->get();
             }
-
-            return view('productservice.index', compact('productServices', 'category'));
+            //  dd($productServices);
+            return view('productservice.index', compact('productServices', 'category', 'users', 'date', 'ticketpriority', 'ticketstatus', 'orderstatus'));
         }
         else
         {
@@ -61,6 +97,8 @@ class ProductServiceController extends Controller
         {
             $customFields = CustomField::where('created_by', '=', \Auth::user()->creatorId())->where('module', '=', 'product')->get();
             $category     = ProductServiceCategory::where('created_by', '=', \Auth::user()->creatorId())->where('type', '=', 'product & service')->get()->pluck('name', 'id');
+            $group = Group::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $group->prepend('Select Group', '');
             $unit         = ProductServiceUnit::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
             $tax          = Tax::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
             $incomeChartAccounts = ChartOfAccount::select(\DB::raw('CONCAT(chart_of_accounts.code, " - ", chart_of_accounts.name) AS code_name, chart_of_accounts.id as id'))
@@ -94,8 +132,9 @@ class ProductServiceController extends Controller
             $expenseSubAccounts->where('chart_of_accounts.parent', '!=', 0);
             $expenseSubAccounts->where('chart_of_accounts.created_by', \Auth::user()->creatorId());
             $expenseSubAccounts = $expenseSubAccounts->get()->toArray();
+            $product_services       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
 
-            return view('productservice.create', compact('category', 'unit', 'tax', 'customFields','incomeChartAccounts','incomeSubAccounts','expenseChartAccounts' , 'expenseSubAccounts'));
+            return view('productservice.create', compact('category', 'group', 'unit', 'tax', 'customFields','incomeChartAccounts','incomeSubAccounts','expenseChartAccounts' , 'expenseSubAccounts', 'product_services'));
         }
         else
         {
@@ -105,21 +144,23 @@ class ProductServiceController extends Controller
 
     public function store(Request $request)
     {
-
+     
+        $input = $request->all();
+        // dd($request->all());
+     if($request->sendforapp == '')
+     {
         if(\Auth::user()->can('create product & service'))
         {
 
             $rules = [
                 'name' => 'required',
-                'sku' => ['required', Rule::unique('product_services')->where(function ($query) {
+                'hsn_code' => ['required', Rule::unique('product_services')->where(function ($query) {
                    return $query->where('created_by', \Auth::user()->id);
                  })
                 ],
                 'sale_price' => 'required|numeric',
                 'purchase_price' => 'required|numeric',
-                'category_id' => 'required',
-                'unit_id' => 'required',
-                'type' => 'required',
+               
             ];
 
             $validator = \Validator::make($request->all(), $rules);
@@ -130,27 +171,40 @@ class ProductServiceController extends Controller
 
                 return redirect()->route('productservice.index')->with('error', $messages->first());
             }
-
+// dd($request->all());
+            $array = explode(":", $request->hsn_code, 2);
+            
+            $productCode                     = new SpecificationCodeOrder();
+            $productCode->code                =$array[1];
+            $productCode->save();      
+            
+            foreach($request->material_total_price as $key => $v)
+            {
+            $productCodeMaterial                     = new SpecificationCodeMaterial();
+            $productCodeMaterial->name                = $request->material[$key];
+            $productCodeMaterial->specification_code_order_id   = $productCode->id;
+            $productCodeMaterial->unit_rate                = $request->material_total_price[$key];
+            $productCodeMaterial->image                = $request->pro_image;
+            $productCodeMaterial->qty                = 1;
+            $productCodeMaterial->save();  
+            }
+            if($productCode)
+            {
+             
             $productService                      = new ProductService();
             $productService->name                = $request->name;
+            $productService->model          = $request->model;
+            $productService->hsn_code          = $array[1];
             $productService->description         = $request->description;
-            $productService->sku                 = $request->sku;
+            $productService->sku                 = 'PRD'.'-'.rand(9999, 10000);
+            $productService->generated_img         = $request->generated_img;
             $productService->sale_price          = $request->sale_price;
             $productService->purchase_price      = $request->purchase_price;
-            $productService->tax_id              = !empty($request->tax_id) ? implode(',', $request->tax_id) : '';
-            $productService->unit_id             = $request->unit_id;
-            if(!empty($request->quantity))
-            {
-                $productService->quantity        = $request->quantity;
-            }
-            else{
-                $productService->quantity   = 0;
-            }
-            $productService->type                       = $request->type;
-            $productService->sale_chartaccount_id       = $request->sale_chartaccount_id;
-            $productService->expense_chartaccount_id    = $request->expense_chartaccount_id;
-            $productService->category_id                = $request->category_id;
-
+            $productService->tax_id              = '';
+            $productService->unit_id             = 1;
+            $productService->group_id             =  $request->group_id;
+            $productService->labor_charge             = $request->other_cost;
+            $productService->other_cost             = $request->other_cost;
             if(!empty($request->pro_image))
             {
                 //storage limit
@@ -168,19 +222,161 @@ class ProductServiceController extends Controller
                     $path = Utility::upload_file($request,'pro_image',$fileName,$dir,[]);
                 }
             }
-
+            if(!empty($request->quantity))
+            {
+                $productService->quantity        = $request->material_quantity;
+                $productService->sp_qty        = $request->quantity;
+            }
+            else{
+                $productService->quantity   = 0;
+                $productService->sp_qty        =0;
+            }
+            $productService->type                       = 'product';
+            $productService->specification_code_order_id       = $productCode->id;
+            $productService->expense_chartaccount_id    = $request->expense_chartaccount_id;
+            $productService->category_id                = $request->category_id;
+           
             $productService->created_by       = \Auth::user()->creatorId();
             $productService->save();
-            CustomField::saveData($productService, $request->customField);
-
+                $invoice = new Invoice();
+                $invoice->invoice_id = $this->invoiceNumber();
+                $invoice->customer_id = 1;
+                $invoice->status = 0;
+                $invoice->issue_date = now()->format('Y-m-d');
+                $invoice->due_date = now()->format('Y-m-d');
+                $invoice->category_id = 3;
+                $invoice->ref_number = rand(9999, 10000);
+    //            $invoice->discount_apply = isset($request->discount_apply) ? 1 : 0;
+                $invoice->created_by = \Auth::user()->creatorId();
+                $invoice->save();
+            
+                $invoiceProduct = new InvoiceProduct();
+                $invoiceProduct->invoice_id = $invoice->id;
+                $invoiceProduct->product_id = $productService->id;
+                $invoiceProduct->quantity  = $request->material_quantity;
+                $invoiceProduct->tax = $request->other_cost +  $request->labor_charge;
+//                $invoiceProduct->discount    = isset($products[$i]['discount']) ? $products[$i]['discount'] : 0;
+                $invoiceProduct->discount = 0;
+                $invoiceProduct->price = $request->total_price;
+                $invoiceProduct->description =$request->description;
+                $invoiceProduct->save();
+            }
             return redirect()->route('productservice.index')->with('success', __('Product successfully created.'));
         }
         else
         {
             return redirect()->back()->with('error', __('Permission denied.'));
         }
+     }else if($request->sendforvirification != ''){
+            
+            $array = explode(":", $request->hsn_code, 2);
+            
+            $productCode                     = new SpecificationCodeOrder();
+            $productCode->code                =$array[1];
+            $productCode->save();      
+            
+            foreach($request->material_total_price as $key => $v)
+            {
+            $productCodeMaterial                     = new SpecificationCodeMaterial();
+            $productCodeMaterial->name                = $request->material[$key];
+            $productCodeMaterial->specification_code_order_id   = $productCode->id;
+            $productCodeMaterial->unit_rate                = $request->material_total_price[$key];
+            $productCodeMaterial->image                = $request->pro_image;
+            $productCodeMaterial->qty                = 1;
+            $productCodeMaterial->save();  
+            }
+            if($productCode)
+            {
+            $productService                      = new ProductService();
+            $productService->name                = $request->name;
+            $productService->model          = $request->model;
+            $productService->hsn_code          = $array[1];
+            $productService->description         = $request->description;
+            $productService->sku                 = 'PRD'.'-'.rand(9999, 10000);
+            $productService->sale_price          = $request->grand_total;
+            $productService->purchase_price      = $request->total_price;
+            $productService->tax_id              = '';
+            $productService->unit_id             = 1;
+            $productService->group_id             =  $request->group_id;
+            $productService->labor_charge             = $request->other_cost;
+            $productService->other_cost             = $request->other_cost;
+            if(!empty($request->quantity))
+            {
+                $productService->quantity        = $request->main_quantity;
+                $productService->sp_qty        = $request->quantity;
+            }
+            else{
+                $productService->quantity   = 0;
+                $productService->sp_qty        =0;
+            }
+            $productService->type                       = 'product';
+            $productService->specification_code_order_id       = $productCode->id;
+            $productService->expense_chartaccount_id    = $request->expense_chartaccount_id;
+            $productService->category_id                = $request->category_id;
+            $productService->pro_image = $request->pro_image;
+            $productService->created_by       = \Auth::user()->creatorId();
+            $productService->save();
+                $invoice = new Invoice();
+                $invoice->invoice_id = $this->invoiceNumber();
+                $invoice->customer_id = 1;
+                $invoice->status = 0;
+                $invoice->issue_date = now()->format('Y-m-d');
+                $invoice->due_date = now()->format('Y-m-d');
+                $invoice->category_id = 3;
+                $invoice->ref_number = rand(9999, 10000);
+    //            $invoice->discount_apply = isset($request->discount_apply) ? 1 : 0;
+                $invoice->created_by = \Auth::user()->creatorId();
+                $invoice->save();
+            
+                $invoiceProduct = new InvoiceProduct();
+                $invoiceProduct->invoice_id = $invoice->id;
+                $invoiceProduct->product_id = $productService->id;
+                $invoiceProduct->quantity  = $request->main_quantity;
+                $invoiceProduct->tax = $request->other_cost +  $request->labor_charge;
+//                $invoiceProduct->discount    = isset($products[$i]['discount']) ? $products[$i]['discount'] : 0;
+                $invoiceProduct->discount = 0;
+                $invoiceProduct->price = $request->total_price;
+                $invoiceProduct->description =$request->description;
+                $invoiceProduct->save();
+            } 
+            return redirect()->route('productservice.index')->with('success', __('Product successfully created.'));
+            
+     }
+     else{
+           if(!empty($request->pro_image))
+            {
+                //storage limit
+                $image_size = $request->file('pro_image')->getSize();
+                $result = Utility::updateStorageLimit(\Auth::user()->creatorId(), $image_size);
+                if($result==1)
+                {
+                    // if($productService->pro_image)
+                    // {
+                    //     $path = storage_path('uploads/pro_image' . $productService->pro_image);
+                    // }
+                    $fileName = $request->pro_image->getClientOriginalName();
+                    $input['pro_image'] = $fileName;
+                    $dir        = 'uploads/pro_image';
+                    $path = Utility::upload_file($request,'pro_image',$fileName,$dir,[]);
+                }
+            }
+          $invoice_number = \Auth::user()->invoiceNumberFormat($this->invoiceNumber());
+          $input['invoice'] = $invoice_number;
+          $input['datetime'] =now();
+          
+          return view('productservice.invoice', compact('input'));
+     }
+     
     }
+   public function invoiceNumber()
+    {
+        $latest = Invoice::where('created_by', '=', \Auth::user()->creatorId())->latest()->first();
+        if (!$latest) {
+            return 1;
+        }
 
+        return $latest->invoice_id + 1;
+    }
     public function show()
     {
         return redirect()->route('productservice.index');
@@ -189,7 +385,77 @@ class ProductServiceController extends Controller
     public function edit($id)
     {
         $productService = ProductService::find($id);
+        
+         $cat = Specification::with('subspecifications')->where(['priority' => 0, 'group_id' => $productService->group_id])->get();
+         $material = SpecificationCodeMaterial::where(['specification_code_order_id' =>$productService->specification_code_order_id])->orderBy('id', 'desc')->pluck('name')->toArray();
+        //  $productService = ProductService::find($id);
+     
+        // $all_products = ProductService::getallproducts()->count();
 
+       $data = [];
+       $datas = [];
+       $htmls = '';
+        foreach ($cat as $key => $c) {
+           if($key == 0)
+           {
+             $html ='<div class="col-md-4">
+            <div class="form-group">
+            <label for="specification-name" class="form-label">' . $c->name . '</label>
+            <select class="form-control group-material-'.$key.'" data-id="' . $c->name . '"><option>Select' . $c->name . '</option>';   
+           }else{
+                $html ='<div class="col-md-4">
+            <div class="form-group">
+            <label for="specification-name" class="form-label">' . $c->name . '</label>
+            <select class="form-control group-material-'.$key.'" data-id="' . $c->name . '" disabled><option>Select' . $c->name . '</option>';
+           }
+            
+            
+           
+             foreach ($c->subspecifications as $key => $cs) {
+                 if (array_search($cs->prefix, $material) !== false) {
+                   $html .='<option value="' . $cs->id . '" selected>' . $cs->prefix .': '. $cs->name. '</option>';
+                } else {
+                   $html .='<option value="' . $cs->id . '">' . $cs->prefix .': '. $cs->name. '</option>';  
+                }
+              
+             }
+             $html .='</select></div></div>';
+               array_push($data, $html);
+        }
+        
+           $cats = SpecificationCodeMaterial::where(['specification_code_order_id' =>$productService->specification_code_order_id])->orderBy('id', 'desc')->get();
+        //   dd($cats);
+            foreach ($cats as $key => $cat) {
+            $htmls ='<div class="col-md-3 comm-div-first edit-input">
+            <div class="form-group">
+                <label for="material" class="form-label">Material</label><span class="text-danger">*</span>
+                <input class="form-control prefix-input" required="required" readonly="" name="material[]" type="text" value="' . $cat->name . '" id="material">
+               
+            </div>
+        </div>
+        <div class="col-md-3 comm-div-first edit-input">
+            <div class="form-group">
+                <label for="unit_rate" class="form-label">Unit Rate</label><span class="text-danger">*</span>
+                <input class="form-control " required="required" step="0.01" name="unit_rate[]" type="number" value="' . $cat->unit_rate . '" id="unit_rate-'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first edit-input">
+            <div class="form-group">
+                <label for="material_quantity" class="form-label">Quantity</label><span class="text-danger">*</span>
+                <input class="form-control material_quantity" required="required" step="1" name="material_quantity[]" type="number" value="1" data-id="'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first edit-input">
+            <div class="form-group">
+                <label for="material_total_price" class="form-label">Total</label><span class="text-danger">*</span>
+                <input class="form-control number-input" required="required" readonly="" name="material_total_price[]" type="text" value="' . $cat->unit_rate . '" id="material_total_price-'.$cat->id.'">
+            </div>
+        </div>';
+         array_push($datas, $htmls);
+            }
+       
+         $group = Group::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $group->prepend('Select Group', '');   
         if(\Auth::user()->can('edit product & service'))
         {
             if($productService->created_by == \Auth::user()->creatorId())
@@ -233,7 +499,7 @@ class ProductServiceController extends Controller
             $expenseSubAccounts->where('chart_of_accounts.created_by', \Auth::user()->creatorId());
             $expenseSubAccounts = $expenseSubAccounts->get()->toArray();
 
-                return view('productservice.edit', compact('category', 'unit', 'tax', 'productService', 'customFields','incomeChartAccounts','expenseChartAccounts' , 'incomeSubAccounts' , 'expenseSubAccounts'));
+                return view('productservice.edit', compact('category', 'unit', 'group', 'tax', 'data', 'datas', 'cats', 'productService', 'customFields','incomeChartAccounts','expenseChartAccounts' , 'incomeSubAccounts' , 'expenseSubAccounts'));
             }
             else
             {
@@ -248,7 +514,7 @@ class ProductServiceController extends Controller
 
     public function update(Request $request, $id)
     {
-
+        
         if(\Auth::user()->can('edit product & service'))
         {
             $productService = ProductService::find($id);
@@ -256,12 +522,10 @@ class ProductServiceController extends Controller
             {
                 $rules = [
                     'name' => 'required',
-                    'sku' => 'required', Rule::unique('product_services')->ignore($productService->id),
+                    'model' => 'required',
                     'sale_price' => 'required|numeric',
                     'purchase_price' => 'required|numeric',
-                    'category_id' => 'required',
-                    'unit_id' => 'required',
-                    'type' => 'required',
+                    
 
                 ];
 
@@ -273,55 +537,113 @@ class ProductServiceController extends Controller
 
                     return redirect()->route('productservice.index')->with('error', $messages->first());
                 }
-
-                $productService->name           = $request->name;
-                $productService->description    = $request->description;
-                $productService->sku            = $request->sku;
-                $productService->sale_price     = $request->sale_price;
-                $productService->purchase_price = $request->purchase_price;
-                $productService->tax_id         = !empty($request->tax_id) ? implode(',', $request->tax_id) : '';
-                $productService->unit_id        = $request->unit_id;
-
-                if(!empty($request->quantity))
-                {
-                    $productService->quantity   = $request->quantity;
-                }
-                else{
-                    $productService->quantity   = 0;
-                }
-                $productService->type                       = $request->type;
-                $productService->sale_chartaccount_id       = $request->sale_chartaccount_id;
-                $productService->expense_chartaccount_id    = $request->expense_chartaccount_id;
-                $productService->category_id                = $request->category_id;
-
-                if(!empty($request->pro_image))
+                // dd($request->all());
+               
+                
+                // $array = explode(":", $request->series, 2);
+            
+            $productCode                     = SpecificationCodeOrder::find($productService->specification_code_order_id);
+            $productCode->code                = $request->hsn_code;
+            $productCode->save();      
+            $count = 0;
+            // dd($productCode);
+            foreach($request->material_id as $key => $v)
+            {
+            
+            // $productCodeMaterial                     = SpecificationCodeMaterial::find($request->material_id[$key]);
+            SpecificationCodeMaterial::where("id", $request->material_id[$key])->update([
+                'name' => $request->material[$key],
+                'specification_code_order_id' =>$productService->specification_code_order_id,
+                'unit_rate' => $request->material_total_price[$key],
+                'qty' =>1
+                
+                ]);
+            // $productCodeMaterial->name                = $request->material[$key];
+            // $productCodeMaterial->specification_code_order_id   = $productService->specification_code_order_id;
+            // $productCodeMaterial->unit_rate                = $request->material_total_price[$key];
+            // $productCodeMaterial->image                = $request->pro_image;
+            // $productCodeMaterial->qty                = 1;
+            // $productCodeMaterial->save();  
+            // $count = $count+1;
+            }
+            if($productCode)
+            {
+           
+            $productService->name                = $request->name;
+            $productService->model          = $request->model;
+            $productService->hsn_code          = $request->hsn_code;
+            $productService->description         = $request->description;
+            $productService->sku                 = 'PRD'.'-'.rand(9999, 10000);
+            $productService->sale_price          = $request->sale_price;
+            $productService->purchase_price      = $request->purchase_price;
+            $productService->tax_id              = '';
+            $productService->unit_id             = 1;
+            $productService->group_id             =  $request->group_id;
+            $productService->labor_charge             = $request->other_cost;
+            $productService->other_cost             = $request->other_cost;
+            if(!empty($request->quantity))
+            {
+                $productService->quantity        =$request->material_quantity[0];;
+                $productService->sp_qty        = $request->quantity;
+            }
+            else{
+                $productService->quantity   = 0;
+                $productService->sp_qty        =0;
+            }
+            $productService->type                       = 'product';
+            $productService->specification_code_order_id       = $productCode->id;
+            $productService->expense_chartaccount_id    = $request->expense_chartaccount_id;
+            $productService->category_id                = $request->category_id;
+             if(!empty($request->pro_image))
                 {
                     //storage limit
-                    $file_path = '/uploads/pro_image/'.$productService->pro_image;
-                    $image_size = $request->file('pro_image')->getSize();
-                    $result = Utility::updateStorageLimit(\Auth::user()->creatorId(), $image_size);
-                    if($result==1)
-                    {
-                        if($productService->pro_image)
-                        {
-                            Utility::changeStorageLimit(\Auth::user()->creatorId(), $file_path);
-                            $path = storage_path('uploads/pro_image' . $productService->pro_image);
-//                            if(file_exists($path))
-//                            {
-//                                \File::delete($path);
-//                            }
-                        }
+                    // $file_path = '/uploads/pro_image/'.$productService->pro_image;
+                    // $image_size = $request->file('pro_image')->getSize();
+                    // $result = Utility::updateStorageLimit(\Auth::user()->creatorId(), $image_size);
+                    // if($result==1)
+                    // {
+//                         if($productService->pro_image)
+//                         {
+//                             Utility::changeStorageLimit(\Auth::user()->creatorId(), $file_path);
+//                             $path = storage_path('uploads/pro_image' . $productService->pro_image);
+// //                            if(file_exists($path))
+// //                            {
+// //                                \File::delete($path);
+// //                            }
+//                         }
                         $fileName = $request->pro_image->getClientOriginalName();
                         $productService->pro_image = $fileName;
                         $dir        = 'uploads/pro_image';
                         $path = Utility::upload_file($request,'pro_image',$fileName,$dir,[]);
-                    }
+                    // }
 
                 }
-
-                $productService->created_by     = \Auth::user()->creatorId();
-                $productService->save();
-                CustomField::saveData($productService, $request->customField);
+            $productService->created_by       = \Auth::user()->creatorId();
+            $productService->save();
+                $invoice = new Invoice();
+                $invoice->invoice_id = $this->invoiceNumber();
+                $invoice->customer_id = 1;
+                $invoice->status = 0;
+                $invoice->issue_date = now()->format('Y-m-d');
+                $invoice->due_date = now()->format('Y-m-d');
+                $invoice->category_id = 3;
+                $invoice->ref_number = rand(9999, 10000);
+    //            $invoice->discount_apply = isset($request->discount_apply) ? 1 : 0;
+                $invoice->created_by = \Auth::user()->creatorId();
+                $invoice->save();
+            
+                $invoiceProduct = new InvoiceProduct();
+                $invoiceProduct->invoice_id = $invoice->id;
+                $invoiceProduct->product_id = $productService->id;
+                $invoiceProduct->quantity  = 1;
+                $invoiceProduct->tax = $request->other_cost +  $request->labor_charge;
+//                $invoiceProduct->discount    = isset($products[$i]['discount']) ? $products[$i]['discount'] : 0;
+                $invoiceProduct->discount = 0;
+                $invoiceProduct->price = $request->purchase_price;
+                $invoiceProduct->description =$request->description;
+                $invoiceProduct->save();
+            }
+                // CustomField::saveData($productService, $request->customField);
 
                 return redirect()->route('productservice.index')->with('success', __('Product successfully updated.'));
             }
@@ -461,10 +783,15 @@ class ProductServiceController extends Controller
 
     public function warehouseDetail($id)
     {
-        $products = WarehouseProduct::with(['warehouse'])->where('product_id', '=', $id)->where('created_by', '=', \Auth::user()->creatorId())->get();
-        return view('productservice.detail', compact('products'));
+        $productService = ProductService::find($id);
+        return view('productservice.detail', compact('productService'));
     }
-
+  
+     public function productInvoice(Request $request)
+    {
+       
+       return view('productservice.invoice'); 
+    }
     public function searchProducts(Request $request)
     {
 
@@ -561,7 +888,68 @@ class ProductServiceController extends Controller
             }
         }
     }
-
+   public function search_Products(Request $request)
+    {
+            // $orderStatus = $request->status_id;
+            // $date = Carbon::parse($request->date)->format('Y/m/d');
+            $category = ProductServiceCategory::where('created_by', '=', \Auth::user()->creatorId())->where('type', '=', 'product & service')->get()->pluck('name', 'id');
+            $category->prepend('Select Category', '');
+            $users = User::where('type', '=', 'client')->get()->pluck('name', 'id');
+            $users->prepend(__('Assigned to'), ''); 
+             $orderstatuss = [
+                     
+                     'Received',
+                     'Testing',
+                     'Repairing',
+                     'Dispatch',
+                     'Resolved'
+                     ];
+           
+            $translatedTexts = __('Order Status');
+            $orderstatus = collect([$translatedTexts])->merge($orderstatuss);
+            $ticketstatuss = [
+                'Open',
+                'Hold',
+                'On-Going',
+                'Closed'
+            ];
+            
+            $translatedText = __('Ticket Status');
+            $ticketstatus = collect([$translatedText])->merge($ticketstatuss);
+            $ticketpriority = [
+                 'Low',
+                 'Medium',
+                 'High'
+                 
+                 ];
+            collect($ticketpriority)->prepend(__('Ticket Priority'), '');
+            $date = '';
+            if($request->status_id != 0 && $request->date != '')
+            {
+              
+                $parsedDate = Carbon::parse($request->date)->format('Y-m-d');
+                $productServices = ProductService::where('created_by', '=', \Auth::user()->creatorId())->where('status', $request->status_id)->whereDate('created_at', $parsedDate)
+                ->with(['category','unit','code','group','material'])->get();
+            //   dd($productServices);
+                 return view('productservice.index', compact('productServices', 'category', 'users', 'date', 'ticketpriority', 'ticketstatus', 'orderstatus'));
+            }
+            if($request->date != '')
+            {
+                
+                $parsedDate = Carbon::parse($request->date)->format('Y-m-d');
+                $productServices = ProductService::where('created_by', '=', \Auth::user()->creatorId())->whereDate('created_at', $parsedDate)
+                ->with(['category','unit','code','group','material'])->get();
+               
+            }
+            else
+            {
+           
+                $productServices = ProductService::where('created_by', '=', \Auth::user()->creatorId())->with(['category','unit','code','group','material'])->get();
+               
+            }
+            //  dd($productServices);
+            return view('productservice.index', compact('productServices', 'category', 'users', 'date', 'ticketpriority', 'ticketstatus', 'orderstatus'));
+    }
     public function addToCart(Request $request, $id,$session_key)
     {
 
@@ -891,7 +1279,49 @@ class ProductServiceController extends Controller
 
     }
 
-    public function removeFromCart(Request $request)
+    
+    public function product_status(Request $request)
+    {
+       
+         $product = ProductService::find($request->pid);
+        
+           $input = $request->input('id');
+
+    if (is_numeric($input)) {
+       $product->status = $input;
+       $product->save();
+    } else {
+        if($input == 'High' || $input == 'Medium' ||$input == 'Low'){
+            $product->ticket_priority = $input;
+            $product->save();
+        }else{
+            $product->ticket_status = $input;
+            $product->save();
+        }
+    }
+    if($product)
+    {
+       return response()->json(
+                [
+                    'code' => 200,
+                    'msg' => __('Status updated successfully!'),
+                   
+                ]
+            );  
+    }else{
+         return response()->json(
+                [
+                    'code' => 403,
+                    'msg' => __('Status updation failed!'),
+                   
+                ]
+            );
+    }
+    
+
+        
+
+    }public function removeFromCart(Request $request)
     {
         $id          = $request->id;
         $session_key = $request->session_key;

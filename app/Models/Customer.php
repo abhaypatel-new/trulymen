@@ -54,7 +54,10 @@ class Customer extends Authenticatable
     {
         return $this->id;
     }
-
+    public function leads()
+    {
+        return $this->hasOne(Lead::class, 'id','lead_id');
+    }
     public function creatorId()
     {
         if($this->type == 'company' || $this->type == 'super admin')

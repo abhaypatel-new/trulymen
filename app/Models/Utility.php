@@ -89,6 +89,8 @@ class Utility extends Model
             "company_country" => "",
             "company_telephone" => "",
             "invoice_prefix" => "#INVO",
+            "order_prefix" => "#ODR",
+            "job_prefix" => "#JOB",
             "journal_prefix" => "#JUR",
             "invoice_color" => "ffffff",
             "proposal_prefix" => "#PROP",

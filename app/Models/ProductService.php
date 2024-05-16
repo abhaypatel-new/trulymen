@@ -32,7 +32,18 @@ class ProductService extends Model
     {
         return $this->hasOne('App\Models\ProductServiceUnit', 'id', 'unit_id');
     }
-
+    public function code()
+    {
+        return $this->hasOne('App\Models\SpecificationCodeOrder', 'id', 'specification_code_order_id');
+    }
+    public function group()
+    {
+        return $this->hasOne('App\Models\Group', 'id', 'group_id');
+    }
+   public function material()
+    {
+        return $this->hasMany('App\Models\SpecificationCodeMaterial', 'specification_code_order_id', 'specification_code_order_id');
+    }
     public function category()
     {
         return $this->hasOne('App\Models\ProductServiceCategory', 'id', 'category_id');

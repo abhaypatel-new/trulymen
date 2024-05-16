@@ -9,6 +9,7 @@ class LeadStage extends Model
     protected $fillable = [
         'name',
         'pipeline_id',
+        'color',
         'created_by',
         'order',
     ];

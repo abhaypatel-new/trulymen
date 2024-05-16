@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Bill;
 use App\Models\ChartOfAccount;
 use App\Models\Invoice;
+use App\Models\Group;
+use App\Models\Specification;
+use App\Models\SpecificationCodeMaterial;
 use App\Models\ProductService;
 use App\Models\ProductServiceCategory;
 use Illuminate\Http\Request;
@@ -171,6 +174,371 @@ class ProductServiceCategoryController extends Controller
                           </div>
                        </div>';
         }
+        return Response($html);
+    }
+    
+     public function getSpecification(Request $request)
+    {
+        // dd($request->all());
+        if($request->type != 'hsn_code')
+        {
+        $cat = Specification::with('subspecifications')->where(['priority' => 0, 'group_id' => $request->type])->get();
+        
+        //  dd(count($cat));
+        // $all_products = ProductService::getallproducts()->count();
+
+       $data = [];
+       $imghtml = '';
+        foreach ($cat as $key => $c) {
+                    
+                
+           if($key == 0)
+           {
+             $html ='<div class="col-md-4">
+            <div class="form-group">
+            <label for="specification-name" class="form-label">' . $c->name . '</label>
+            <select class="form-control group-material-'.$key.'" data-id="' . $c->name . '"><option>Select' . $c->name . '</option>';   
+           }else{
+               if($key == count($cat)-1){
+                   $imghtml = '<img src="'.url("storage/uploads/pro_image/".$c->image) .'" alt="specification" class="mt-3" style="width:25%;"/><input type="hidden" name="generated_img" value="'.$c->image.'">';
+                    $html ='<div class="col-md-4">
+            <div class="form-group">
+            <label for="specification-name" class="form-label">' . $c->name . '</label>
+            <select class="form-control group-material-'.$key.'" data-id="' . $c->name . '" disabled id="print_img"><option>Select' . $c->name . '</option>';
+               }else{
+                  $html ='<div class="col-md-4">
+            <div class="form-group">
+            <label for="specification-name" class="form-label">' . $c->name . '</label>
+            <select class="form-control group-material-'.$key.'" data-id="' . $c->name . '" disabled><option>Select' . $c->name . '</option>'; 
+               }
+                
+           }
+            
+            
+           
+             foreach ($c->subspecifications as $key => $cs) {
+            $html .='<option value="' . $cs->id . '">' . $cs->prefix .': '. $cs->name. '</option>';
+             }
+             $html .='</select></div></div>';
+               array_push($data, $html);
+            $data['img'] = $imghtml;
+        }
+    //   dd($data);
+        }else
+        {
+           $product = ProductService::where('hsn_code', $request->code)->first();  
+        //   dd($product);
+          
+           if(isset($product))
+           {
+            $productService =  ProductService::find($product->id);
+            $all =  ProductService::all();
+        
+         $cat = Specification::with('subspecifications')->where(['priority' => 0, 'group_id' => $productService->group_id])->get();
+         $material = SpecificationCodeMaterial::where(['specification_code_order_id' =>$productService->specification_code_order_id])->orderBy('id', 'desc')->pluck('name')->toArray();
+        //   dd($material);
+        //  $productService = ProductService::find($id);
+     
+        // $all_products = ProductService::getallproducts()->count();
+
+       $data = [];
+       $datas = [];
+       $htmls = '';
+        foreach ($cat as $key => $c) {
+           if($key == 0)
+           {
+             $html ='<div class="col-md-4" style="float: inline-start; padding:5px;">
+            <div class="form-group">
+            <label for="specification-name" class="form-label">' . $c->name . '</label>
+            <select class="form-control group-material-'.$key.'" data-id="' . $c->name . '"><option>Select' . $c->name . '</option>';   
+           }else{
+            //   $st = $key%2 == 0?'float: inline-start':'';
+                $html ='<div class="col-md-4" style="float: inline-start;padding:5px;">
+            <div class="form-group">
+            <label for="specification-name" class="form-label">' . $c->name . '</label>
+            <select class="form-control group-material-'.$key.'" data-id="' . $c->name . '" disabled><option>Select' . $c->name . '</option>';
+           }
+            
+            
+           
+             foreach ($c->subspecifications as $key => $cs) {
+                 if (array_search($cs->prefix, $material) !== false) {
+                   $html .='<option value="' . $cs->id . '" selected>' . $cs->prefix .': '. $cs->name. '</option>';
+                } else {
+                   $html .='<option value="' . $cs->id . '">' . $cs->prefix .': '. $cs->name. '</option>';  
+                }
+              
+             }
+             $html .='</select></div></div>';
+             
+              array_push($data, $html);
+            //   $data['main'] = $html;
+            //   array_push($data, $htmls);
+        }
+          $htmls = '<select class="form-control select2 item" data-url="https://trumen.truelymatch.com/quotation/product" required="required" name="items[0][item]">';
+             foreach ($all as $key => $p) {
+                 if ($p->id == $productService->id) {
+                   $htmls .='<option value="' . $p->id . '" selected>' . $p->name .'</option>';
+                } else {
+                   $htmls .='<option value="' . $p->id . '">' . $p->name. '</option>';  
+                }
+              
+             }
+             $htmls .='</select></div></div>';
+             $data['product'] = $htmls;
+           }else{
+               $response['status'] = 403;
+               $response['message'] = 'Recorde not found';
+               return Response($response);
+           }
+            $data['item'] = $productService;
+        }
+       
+        // dd($data);
+        return Response($data);
+    }
+    
+     public function getSpecificationMaterials(Request $request)
+    {
+       
+        if($request->tab == 'Enclosure')
+        {
+             $cat = Specification::where(['id' => $request->id, 'group_id' => $request->type])->first();
+            //  dd($cat);
+            $html ='<div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material" class="form-label">Material</label><span class="text-danger">*</span>
+                <input class="form-control prefix-input" required="required" readonly="" name="material[]" type="text" value="' . $cat->prefix . '" id="material">
+               
+            </div>
+        </div>
+        <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="unit_rate" class="form-label">Unit Rate</label><span class="text-danger">*</span>
+                <input class="form-control" required="required" step="0.01" name="unit_rate[]" type="number" value="' . $cat->price . '" id="unit_rate-'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_quantity" class="form-label">Quantity</label><span class="text-danger">*</span>
+                <input class="form-control material_quantity" required="required" step="1" name="material_quantity[]" type="number" value="1" data-id="'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_total_price" class="form-label">Total</label><span class="text-danger">*</span>
+                <input class="form-control number-input" required="required" readonly="" name="material_total_price[]" type="text" value="' . $cat->price . '" id="material_total_price-'.$cat->id.'">
+            </div>
+        </div>';
+        }else if($request->tab == 'Process+Connection+Material')
+        {
+             $cat = Specification::where(['id' => $request->id, 'group_id' => $request->type])->first();
+          $html ='<div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material" class="form-label">Material</label><span class="text-danger">*</span>
+                <input class="form-control prefix-input" required="required" readonly="" name="material[]" type="text" value="' . $cat->prefix . '" id="material">
+                
+              
+            </div>
+        </div>
+        <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="unit_rate" class="form-label">Unit Rate</label><span class="text-danger">*</span>
+                <input class="form-control" required="required" step="0.01" name="unit_rate[]" type="number" value="' . $cat->price . '" id="unit_rate-'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_quantity" class="form-label">Quantity</label><span class="text-danger">*</span>
+                <input class="form-control material_quantity" required="required" step="1" name="material_quantity[]" type="number" value="1" data-id="'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_total_price" class="form-label">Total</label><span class="text-danger">*</span>
+                <input class="form-control number-input" required="required" readonly="" name="material_total_price[]" type="text" value="' . $cat->price . '" id="material_total_price-'.$cat->id.'">
+            </div>
+        </div>';   
+        }else if($request->tab == 'Process Connection Type')
+        {
+             $cat = Specification::where(['id' => $request->id, 'group_id' => $request->type])->first();
+            $html ='<div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material" class="form-label">Material</label><span class="text-danger">*</span>
+                <input class="form-control prefix-input" required="required" readonly="" name="material[]" type="text" value="' . $cat->prefix . '" id="material">
+                
+            </div>
+        </div>
+        <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="unit_rate" class="form-label">Unit Rate</label><span class="text-danger">*</span>
+                <input class="form-control number-input" required="required" step="0.01" name="unit_rate[]" type="number" value="' . $cat->price . '" id="unit_rate-'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_quantity" class="form-label">Quantity</label><span class="text-danger">*</span>
+                <input class="form-control material_quantity" required="required" step="1" name="material_quantity[]" type="number" value="1" data-id="'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_total_price" class="form-label">Total</label><span class="text-danger">*</span>
+                <input class="form-control" required="required" readonly="" name="material_total_price[]" type="text" value="' . $cat->price . '" id="material_total_price-'.$cat->id.'">
+            </div>
+        </div>'; 
+        }else{
+             $cat = Specification::where(['id' => $request->id, 'group_id' => $request->type])->first();
+             $html ='<div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material" class="form-label">Material</label><span class="text-danger">*</span>
+                <input class="form-control prefix-input" required="required" readonly="" name="material[]" type="text" value="' . $cat->prefix . '" id="material">
+              
+            </div>
+        </div>
+        <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="unit_rate" class="form-label">Unit Rate</label><span class="text-danger">*</span>
+                <input class="form-control" required="required" step="0.01" name="unit_rate[]" type="number" value="' . $cat->price . '" id="unit_rate-'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_quantity" class="form-label">Quantity</label><span class="text-danger">*</span>
+                <input class="form-control material_quantity" required="required" step="1" name="material_quantity[]" type="number" value="1" data-id="'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_total_price" class="form-label">Total</label><span class="text-danger">*</span>
+                <input class="form-control number-input" required="required" readonly="" name="material_total_price[]" type="text" value="' . $cat->price . '" id="material_total_price-'.$cat->id.'">
+            </div>
+        </div>';
+            
+        }
+            
+        
+        return Response($html);
+    }
+    
+     public function getSpecificationMaterialss(Request $request)
+    {
+       
+        if($request->tab == 'Enclosure')
+        {
+             $cat = Specification::where(['id' => $request->id, 'group_id' => $request->type])->first();
+            $html ='<div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material" class="form-label">Material</label><span class="text-danger">*</span>
+                <input class="form-control prefix-input" required="required" readonly="" name="material[]" type="text" value="' . $cat->prefix . '" id="material">
+              
+            </div>
+        </div>
+        <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="unit_rate" class="form-label">Unit Rate</label><span class="text-danger">*</span>
+                <input class="form-control" required="required" step="0.01" name="unit_rate[]" type="number" value="' . $cat->price . '" id="unit_rate-'.$cat->id.'"  readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_quantity" class="form-label">Quantity</label><span class="text-danger">*</span>
+                <input class="form-control material_quantity" required="required" step="1" name="material_quantity[]" type="number" value="1" data-id="'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_total_price" class="form-label">Total</label><span class="text-danger">*</span>
+                <input class="form-control number-input" required="required" readonly="" name="material_total_price[]" type="text" value="' . $cat->price . '" id="material_total_price-'.$cat->id.'">
+            </div>
+        </div>';
+        }else if($request->tab == 'Process+Connection+Material')
+        {
+             $cat = Specification::where(['id' => $request->id, 'group_id' => $request->type])->first();
+          $html ='<div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material" class="form-label">Material</label><span class="text-danger">*</span>
+                <input class="form-control prefix-input" required="required" readonly="" name="material[]" type="text" value="' . $cat->prefix . '" id="material">
+                
+            </div>
+        </div>
+        <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="unit_rate" class="form-label">Unit Rate</label><span class="text-danger">*</span>
+                <input class="form-control" required="required" step="0.01" name="unit_rate[]" type="number" value="' . $cat->price . '" id="unit_rate-'.$cat->id.'"  readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_quantity" class="form-label">Quantity</label><span class="text-danger">*</span>
+                <input class="form-control material_quantity" required="required" step="1" name="material_quantity[]" type="number" value="1" data-id="'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_total_price" class="form-label">Total</label><span class="text-danger">*</span>
+                <input class="form-control number-input" required="required" readonly="" name="material_total_price[]" type="text" value="' . $cat->price . '" id="material_total_price-'.$cat->id.'">
+            </div>
+        </div>';   
+        }else if($request->tab == 'Process Connection Type')
+        {
+             $cat = Specification::where(['id' => $request->id, 'group_id' => $request->type])->first();
+            $html ='<div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material" class="form-label">Material</label><span class="text-danger">*</span>
+                <input class="form-control prefix-input" required="required" readonly="" name="material[]" type="text" value="' . $cat->prefix . '" id="material">
+                 
+            </div>
+        </div>
+        <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="unit_rate" class="form-label">Unit Rate</label><span class="text-danger">*</span>
+                <input class="form-control" required="required" step="0.01" name="unit_rate[]" type="number" value="' . $cat->price . '" id="unit_rate-'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_quantity" class="form-label">Quantity</label><span class="text-danger">*</span>
+                <input class="form-control material_quantity" required="required" step="1" name="material_quantity[]" type="number" value="1" data-id="'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_total_price" class="form-label">Total</label><span class="text-danger">*</span>
+                <input class="form-control number-input" required="required" readonly="" name="material_total_price[]" type="text" value="' . $cat->price . '" id="material_total_price-'.$cat->id.'">
+            </div>
+        </div>'; 
+        }else{
+             $cat = Specification::where(['id' => $request->id, 'group_id' => $request->type])->first();
+             $html ='<div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material" class="form-label">Material</label><span class="text-danger">*</span>
+                <input class="form-control prefix-input" required="required" readonly="" name="material[]" type="text" value="' . $cat->prefix . '" id="material">
+                 
+            </div>
+        </div>
+        <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="unit_rate" class="form-label">Unit Rate</label><span class="text-danger">*</span>
+                <input class="form-control" required="required" step="0.01" name="unit_rate[]" type="number" value="' . $cat->price . '" id="unit_rate-'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_quantity" class="form-label">Quantity</label><span class="text-danger">*</span>
+                <input class="form-control material_quantity" required="required" step="1" name="material_quantity[]" type="number" value="1" data-id="'.$cat->id.'" readonly="">
+            </div>
+        </div>
+         <div class="col-md-3 comm-div-first">
+            <div class="form-group">
+                <label for="material_total_price" class="form-label">Total</label><span class="text-danger">*</span>
+                <input class="form-control number-input" required="required" readonly="" name="material_total_price[]" type="text" value="' . $cat->price . '" id="material_total_price-'.$cat->id.'">
+            </div>
+        </div>';
+            
+        }
+            
+        
         return Response($html);
     }
 

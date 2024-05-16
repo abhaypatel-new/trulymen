@@ -8,6 +8,7 @@ use App\Models\ClientDeal;
 use App\Models\ClientPermission;
 use App\Models\CustomField;
 use App\Models\Deal;
+use App\Models\JobCard;
 use App\Models\DealCall;
 use App\Models\DealDiscussion;
 use App\Models\DealEmail;
@@ -435,6 +436,7 @@ class DealController extends Controller
      */
     public function update(Request $request, Deal $deal)
     {
+        // dd($request->all());
         if(\Auth::user()->can('edit deal'))
         {
             if($deal->created_by == \Auth::user()->ownerId())
@@ -469,7 +471,16 @@ class DealController extends Controller
                 $deal->products    = implode(",", array_filter($request->products));
                 $deal->notes       = $request->notes;
                 $deal->save();
-
+                if($deal && $request->client_check == 'new'){
+                    
+                $jobcard = new JobCard();
+                $jobcard->so_number    = $this->soNumber();
+                $jobcard->deal_id    = $deal->id;
+                $jobcard->created_by   = \Auth::user()->creatorId();
+                
+                $jobcard->save();
+                return redirect()->back()->with('success', __('Order has been converted to job card successfully!'));
+                }
                 CustomField::saveData($deal, $request->customField);
 
                 return redirect()->back()->with('success', __('Deal successfully updated!'));
@@ -484,7 +495,16 @@ class DealController extends Controller
             return redirect()->back()->with('error', __('Permission Denied.'));
         }
     }
+    function soNumber()
+    {
+        $latest = JobCard::where('created_by', '=', \Auth::user()->creatorId())->latest()->first();
+        if(!$latest)
+        {
+            return 1;
+        }
 
+        return $latest->so_number + 1;
+    }
     /**
      * Remove the specified redeal from storage.
      *

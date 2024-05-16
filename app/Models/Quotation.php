@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+
 class Quotation extends Model
 {
     protected $fillable = [
@@ -21,6 +22,11 @@ class Quotation extends Model
     public function customer()
     {
         return $this->hasOne('App\Models\Customer', 'id', 'customer_id');
+    }
+    
+    public function organization()
+    {
+        return $this->hasOne('App\Models\Organization', 'id', 'organization_id');
     }
 
     public function warehouse()
@@ -95,7 +101,8 @@ class Quotation extends Model
             $netPrice = $subtotal - $discount;
             $cart = session()->get($session_key);
             // dd($product);
-            $image_url = (!empty($product->pro_image) && Storage::exists($product->pro_image)) ? $product->pro_image : 'uploads/pro_image/' . $product->pro_image;
+            // $image_url = (!empty($product->pro_image) && Storage::exists($product->pro_image)) ? $product->pro_image : 'uploads/pro_image/' . $product->pro_image;
+            $image_url = (!empty($product->pro_image) || Storage::exists($product->pro_image)) ? $product->pro_image : 'uploads/pro_image/' . $product->pro_image;
 
             $model_delete_id = 'delete-form-' . $id;
 

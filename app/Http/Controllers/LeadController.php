@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\SendLeadEmail;
 use App\Models\ClientDeal;
+use Carbon\Carbon;
 use App\Models\Deal;
 use App\Models\DealCall;
 use App\Models\DealDiscussion;
@@ -92,9 +93,15 @@ class LeadController extends Controller
             }
 
             $pipelines = Pipeline::where('created_by', '=', $usr->creatorId())->get()->pluck('name', 'id');
-            $leads     = Lead::select('leads.*')->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')->where('user_leads.user_id', '=', $usr->id)->where('leads.pipeline_id', '=', $pipeline->id)->orderBy('leads.order')->get();
-
-            return view('leads.list', compact('pipelines', 'pipeline', 'leads'));
+            $leads     = Lead::select('leads.*')->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')->where('user_leads.user_id', '=', $usr->id)->where('leads.pipeline_id', '=', $pipeline->id)->orderBy('leads.id', 'desc')->get();
+            $users = User::where('type', '=', 'company')->get()->pluck('name', 'id');
+            $users->prepend(__('Assigned by'), '');
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Products'), '');
+            $stages       = LeadStage::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $stages->prepend(__('Status'), '');
+            $date = now();
+            return view('leads.list', compact('pipelines', 'pipeline', 'leads', 'users', 'products', 'stages','date'));
         }
         else
         {
@@ -114,6 +121,7 @@ class LeadController extends Controller
         {
             $users = User::where('created_by', '=', \Auth::user()->creatorId())->where('type', '!=', 'client')->where('type', '!=', 'company')->where('id', '!=', \Auth::user()->id)->get()->pluck('name', 'id');
             $users->prepend(__('Select User'), '');
+            
 
             return view('leads.create', compact('users'));
         }
@@ -132,7 +140,8 @@ class LeadController extends Controller
      */
     public function store(Request $request)
     {
-//  dd($request->all());
+  
+        //  dd($request->all());
         $usr = \Auth::user();
         if($usr->can('create lead'))
         {
@@ -141,6 +150,8 @@ class LeadController extends Controller
                                    'subject' => 'nullable',
                                    'name' => 'required',
                                    'industry' => 'required',
+                                   'quantity' => 'required',
+                                   'gst_number' => 'required',
                                    'email' => 'required|string|email|max:255|unique:customers',
                                 //   'name' => 'required',
                 'phone' => 'required|regex:/^([0-9\s\-\+\(\)]*)$/',
@@ -190,8 +201,10 @@ class LeadController extends Controller
                 $lead->email       = $request->email;
                 $lead->phone       = $request->phone;
                 $lead->subject     = $request->subject;
+                $lead->quantity     = $request->quantity;
                 $lead->user_id     = $request->user_id;
-                $lead->owner_id     = $request->owner_id;
+                $lead->assigned_to     = $request->assigned_to;
+                $lead->owner_id     = $usr->creatorId();
                 $lead->pipeline_id = $pipeline->id;
                 $lead->stage_id    = $request->stage_id;
                 $lead->sources     = implode(",", array_filter($request->sources));
@@ -203,7 +216,7 @@ class LeadController extends Controller
                 $lead->save();
                 
                 //start customer create
-                $objCustomer    = \Auth::user();
+            $objCustomer    = \Auth::user();
             $creator        = User::find($objCustomer->creatorId());
             $total_customer = $objCustomer->countCustomers();
             $plan           = Plan::find($creator->plan);
@@ -213,8 +226,10 @@ class LeadController extends Controller
             {
                 $customer                  = new Customer();
                 $customer->customer_id     = $this->customerNumber();
+                $customer->lead_id     = $lead->id;
                 $customer->name            = $request->name;
                 $customer->contact         = $request->phone;
+                $customer->gender           = $request->billing_gender;
                 $customer->email           = $request->email;
                 $customer->tax_number      =$request->gst_number;
                 $customer->created_by      = \Auth::user()->creatorId();
@@ -228,19 +243,57 @@ class LeadController extends Controller
                 $customer->billing_zip     = $request->shipping_zip;
                 $customer->billing_address = $request->shipping_address;
 
-                $customer->shipping_name    = $request->shipping_name;
-                $customer->shipping_department    = $request->shipping_department;
-                $customer->shipping_designation    = $request->shipping_designation;
+                $customer->shipping_name    = $request->billing_name;
+                $customer->shipping_department    = $request->billing_department;
+                $customer->shipping_designation    = $request->billing_designation;
                 $customer->shipping_country = $request->shipping_country;
                 $customer->shipping_state   = $request->shipping_state;
                 $customer->shipping_city    = $request->shipping_city;
-                $customer->shipping_phone   = $request->shipping_phone;
+                $customer->shipping_phone   = $request->billing_phone;
                 $customer->shipping_zip     = $request->shipping_zip;
                 $customer->shipping_address = $request->shipping_address;
 
                 $customer->lang = !empty($default_language) ? $default_language->value : '';
 
                 $customer->save();
+                if($request->shipping_check == 1)
+                {
+                 foreach($request->shipping_name as $key => $v){
+                     $customers                  = new Customer(); 
+                      $customers->customer_id     = $this->customerNumber();
+                $customers->lead_id     = $lead->id;
+                $customers->name            =  $request->shipping_name[$key];
+                $customers->contact         = $request->shipping_phone[$key];
+                $customers->email           = $request->shipping_email[$key];
+                $customers->gender           = $request->shipping_gender[$key];
+                $customers->tax_number      =$request->gst_number;
+                $customers->created_by      = \Auth::user()->creatorId();
+                $customers->billing_name    = $request->shipping_name[$key];
+                $customers->billing_department    = $request->shipping_department[$key];
+                $customers->billing_designation    = $request->shipping_designation[$key];
+                $customers->billing_country = $request->shipping_country;
+                $customers->billing_state   = $request->shipping_state;
+                $customers->billing_city    = $request->shipping_city;
+                $customers->billing_phone   = $request->shipping_phone[$key];
+                $customers->billing_zip     = $request->shipping_zip;
+                $customers->billing_address = $request->shipping_address;
+
+                $customers->shipping_name    = $request->shipping_name[$key];
+                $customers->shipping_department    = $request->shipping_department[$key];
+                $customers->shipping_designation    = $request->shipping_designation[$key];
+                $customers->shipping_country = $request->shipping_country;
+                $customers->shipping_state   = $request->shipping_state;
+                $customers->shipping_city    = $request->shipping_city;
+                $customers->shipping_phone   = $request->shipping_phone[$key];
+                $customers->shipping_zip     = $request->shipping_zip;
+                $customers->shipping_address = $request->shipping_address;
+
+                $customers->lang = !empty($default_language) ? $default_language->value : '';
+
+                $customers->save();
+                     
+                  }
+                }
                 // CustomField::saveData($customer, $request->customField);
             }
                 //end customer create
@@ -331,14 +384,14 @@ class LeadController extends Controller
                     $status = Utility::WebhookCall($webhook['url'],$parameter,$webhook['method']);
                     if($status == true)
                     {
-                        return redirect()->back()->with('success', __('Lead successfully created!') .((!empty ($resp) && $resp['is_success'] == false && !empty($resp['error'])) ? '<br> <span class="text-danger">' . $resp['error'] . '</span>' : ''));
+                        return redirect()->route('leads.list')->with('success', __('Lead successfully created!') .((!empty ($resp) && $resp['is_success'] == false && !empty($resp['error'])) ? '<br> <span class="text-danger">' . $resp['error'] . '</span>' : ''));
                     }
                     else
                     {
                         return redirect()->back()->with('error', __('Webhook call failed.'));
                     }
                 }
-                return redirect()->back()->with('success', __('Lead successfully created!') .((!empty ($resp) && $resp['is_success'] == false && !empty($resp['error'])) ? '<br> <span class="text-danger">' . $resp['error'] . '</span>' : ''));
+                return redirect()->route('leads.list')->with('success', __('Lead successfully created!') .((!empty ($resp) && $resp['is_success'] == false && !empty($resp['error'])) ? '<br> <span class="text-danger">' . $resp['error'] . '</span>' : ''));
 
             }
         }
@@ -361,6 +414,7 @@ class LeadController extends Controller
         {
             $calenderTasks = [];
             $deal          = Deal::where('id', '=', $lead->is_converted)->first();
+           
             $stageCnt      = LeadStage::where('pipeline_id', '=', $lead->pipeline_id)->where('created_by', '=', $lead->created_by)->get();
             $i             = 0;
             foreach($stageCnt as $stage)
@@ -372,8 +426,9 @@ class LeadController extends Controller
                 }
             }
             $precentage = number_format(($i * 100) / count($stageCnt));
-
-            return view('leads.show', compact('lead', 'calenderTasks', 'deal', 'precentage'));
+            $stages       = LeadStage::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $stages->prepend(__('Status'), '');
+            return view('leads.show', compact('lead', 'calenderTasks', 'deal', 'precentage', 'stages'));
         }
         else
         {
@@ -398,11 +453,12 @@ class LeadController extends Controller
                 $pipelines->prepend(__('Select Pipeline'), '');
                 $sources        = Source::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
                 $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
-                $users          = User::where('created_by', '=', \Auth::user()->creatorId())->where('type', '!=', 'client')->where('type', '!=', 'company')->where('id', '!=', \Auth::user()->id)->get()->pluck('name', 'id');
+                $users          = User::where('type', '!=', 'client')->where('type', '=', 'company')->get()->pluck('name', 'id');
+                $customer              = Customer::where('lead_id', $lead->id)->first();
                 $lead->sources  = explode(',', $lead->sources);
                 $lead->products = explode(',', $lead->products);
-
-                return view('leads.edit', compact('lead', 'pipelines', 'sources', 'products', 'users'));
+            //   dd($customer);
+                return view('leads.edit', compact('lead', 'pipelines', 'sources', 'products', 'users', 'customer'));
             }
             else
             {
@@ -425,6 +481,7 @@ class LeadController extends Controller
      */
     public function update(Request $request, Lead $lead)
     {
+    //   dd($request->all());
         if(\Auth::user()->can('edit lead'))
         {
             if($lead->created_by == \Auth::user()->creatorId())
@@ -454,14 +511,143 @@ class LeadController extends Controller
                 $lead->phone       = $request->phone;
                 $lead->subject     = $request->subject;
                 $lead->user_id     = $request->user_id;
+                $lead->assigned_to     = $request->assigned_to;
+                $lead->quantity     = $request->quantity;
                 $lead->pipeline_id = $request->pipeline_id;
                 $lead->stage_id    = $request->stage_id;
+                $lead->industry_name = $request->industry_name;
                 $lead->sources     = implode(",", array_filter($request->sources));
                 $lead->products    = implode(",", array_filter($request->products));
                 $lead->notes       = $request->notes;
                 $lead->save();
+                
+                      //start customer create
+                $objCustomer    = \Auth::user();
+                $creator        = User::find($objCustomer->creatorId());
+                $total_customer = $objCustomer->countCustomers();
+                $plan           = Plan::find($creator->plan);
+    
+                $default_language          = DB::table('settings')->select('value')->where('name', 'default_language')->first();
+                if($total_customer < $plan->max_customers || $plan->max_customers == -1)
+                {
+                   
+                $customer                  =  Customer::find($request->user_id);
+                // dd($customer);
+                // $customer->customer_id     = $this->customerNumber();
+                // $customer->lead_id     = $lead->id;
+                $customer->name            = $request->billing_name;
+                $customer->contact         = $request->phone;
+                $customer->gender           = $request->billing_gender;
+                $customer->email           = $request->email;
+                $customer->tax_number      =$request->tax_number;
+                $customer->created_by      = \Auth::user()->creatorId();
+                $customer->billing_name    = $request->billing_name;
+                $customer->billing_department    = $request->billing_department;
+                $customer->billing_designation    = $request->billing_designation;
+                $customer->billing_country = $request->shipping_country;
+                $customer->billing_state   = $request->shipping_state;
+                $customer->billing_city    = $request->shipping_city;
+                $customer->billing_phone   = $request->phone;
+                $customer->billing_zip     = $request->shipping_zip;
+                $customer->billing_address = $request->shipping_address;
 
-                return redirect()->back()->with('success', __('Lead successfully updated!'));
+                $customer->shipping_name    = $request->billing_name;
+                $customer->shipping_department    = $request->billing_department;
+                $customer->shipping_designation    = $request->billing_designation;
+                $customer->shipping_country = $request->shipping_country;
+                $customer->shipping_state   = $request->shipping_state;
+                $customer->shipping_city    = $request->shipping_city;
+                $customer->shipping_phone   = $request->billing_phone;
+                $customer->shipping_zip     = $request->shipping_zip;
+                $customer->shipping_address = $request->shipping_address;
+
+                $customer->lang = !empty($default_language) ? $default_language->value : '';
+                   
+                $customer->save();
+                //  dd($customer);
+                if($request->shipping_name != null)
+                {
+                     
+                 foreach($request->shipping_name as $key => $v){
+                   
+                     $customers         = Customer::find($request->shipping_user_id[$key]);
+                if(isset($customers))
+                {
+                      //   $customers->customer_id     = $this->customerNumber();
+                // $customers->lead_id     = $lead->id;
+                $customers->name            =  $request->shipping_name[$key];
+                $customers->contact         = $request->shipping_phone[$key];
+                $customers->email           = $request->shipping_email[$key];
+                $customers->gender           = $request->shipping_gender[$key+1];
+                $customers->tax_number      =$request->tax_number;
+                $customers->created_by      = \Auth::user()->creatorId();
+                $customers->billing_name    = $request->shipping_name[$key];
+                $customers->billing_department    = $request->shipping_department[$key];
+                $customers->billing_designation    = $request->shipping_designation[$key];
+                $customers->billing_country = $request->shipping_country;
+                $customers->billing_state   = $request->shipping_state;
+                $customers->billing_city    = $request->shipping_city;
+                $customers->billing_phone   = $request->shipping_phone[$key];
+                $customers->billing_zip     = $request->shipping_zip;
+                $customers->billing_address = $request->shipping_address;
+
+                $customers->shipping_name    = $request->shipping_name[$key];
+                $customers->shipping_department    = $request->shipping_department[$key];
+                $customers->shipping_designation    = $request->shipping_designation[$key];
+                $customers->shipping_country = $request->shipping_country;
+                $customers->shipping_state   = $request->shipping_state;
+                $customers->shipping_city    = $request->shipping_city;
+                $customers->shipping_phone   = $request->shipping_phone[$key];
+                $customers->shipping_zip     = $request->shipping_zip;
+                $customers->shipping_address = $request->shipping_address;
+
+                $customers->lang = !empty($default_language) ? $default_language->value : '';
+
+                $customers->save();
+                //   dd($customers); 
+                }else{
+                    
+                  $newCustomer                  = new Customer();     
+                  $newCustomer->customer_id     = $this->customerNumber();
+                  $newCustomer->lead_id     = $lead->id;
+                $newCustomer->name            =  $request->shipping_name[$key];
+                $newCustomer->contact         = $request->shipping_phone[$key];
+                $newCustomer->email           = $request->shipping_email[$key];
+                $newCustomer->gender           = $request->shipping_genders[0];
+                $newCustomer->tax_number      =$request->tax_number;
+                $newCustomer->created_by      = \Auth::user()->creatorId();
+                $newCustomer->billing_name    = $request->shipping_name[$key];
+                $newCustomer->billing_department    = $request->shipping_department[$key];
+                $newCustomer->billing_designation    = $request->shipping_designation[$key];
+                $newCustomer->billing_country = $request->shipping_country;
+                $newCustomer->billing_state   = $request->shipping_state;
+                $newCustomer->billing_city    = $request->shipping_city;
+                $newCustomer->billing_phone   = $request->shipping_phone[$key];
+                $newCustomer->billing_zip     = $request->shipping_zip;
+                $newCustomer->billing_address = $request->shipping_address;
+
+                $newCustomer->shipping_name    = $request->shipping_name[$key];
+                $newCustomer->shipping_department    = $request->shipping_department[$key];
+                $newCustomer->shipping_designation    = $request->shipping_designation[$key];
+                $newCustomer->shipping_country = $request->shipping_country;
+                $newCustomer->shipping_state   = $request->shipping_state;
+                $newCustomer->shipping_city    = $request->shipping_city;
+                $newCustomer->shipping_phone   = $request->shipping_phone[$key];
+                $newCustomer->shipping_zip     = $request->shipping_zip;
+                $newCustomer->shipping_address = $request->shipping_address;
+
+                $newCustomer->lang = !empty($default_language) ? $default_language->value : '';
+
+                $newCustomer->save();
+                    
+                }
+                     
+                  }
+                }
+                // CustomField::saveData($customer, $request->customField);
+                
+            }
+                return redirect()->route('leads.list')->with('success', __('Lead successfully updated!'));
             }
             else
             {
@@ -1123,6 +1309,7 @@ class LeadController extends Controller
 
     public function discussionStore($id, Request $request)
     {
+        // dd($request->all());
         $usr        = \Auth::user();
         $lead       = Lead::find($id);
         $lead_users = $lead->users->pluck('id')->toArray();
@@ -1140,8 +1327,13 @@ class LeadController extends Controller
                 'name' => $lead->name,
                 'updated_by' => $usr->id,
             ];
-
-            return redirect()->back()->with('success', __('Message successfully added!'))->with('status', 'discussion');
+            if($discussion)
+            {
+            $lead->stage_id    = $request->stage_id;
+            $lead->save();   
+            }
+            return response()->json(['code'=> 200, 'msg' => __('Note has been sent.'), 'data' => Lead::with('discussions')->where('id',$id)->get()], 200);
+            // return redirect()->back()->with('success', __('Message successfully added!'))->with('status', 'discussion');
         }
         else
         {
@@ -1237,7 +1429,7 @@ class LeadController extends Controller
 
     public function convertToDeal($id, Request $request)
     {
-
+    //   dd($id);
         $lead = Lead::findOrFail($id);
         $usr  = \Auth::user();
 
@@ -1269,7 +1461,7 @@ class LeadController extends Controller
                 $request->all(), [
                                    'client_name' => 'required',
                                    'client_email' => 'required|email|unique:users,email',
-                                   'client_password' => 'required',
+                                   'client_password' => 'nullable',
                                ]
             );
 
@@ -1917,6 +2109,149 @@ class LeadController extends Controller
 
         return redirect()->back()->with($data['status'], $data['msg']);
     }
+    
+    //searching start
+    
+     public function search(Request $request)
+    {
+//  dd($request->all());
+         $date = $request->date == 'Date'?'':$request->date;
+         $usr = \Auth::user();
+         $leads = '';    
+        
+            if($usr->default_pipeline)
+            {
+                $pipeline = Pipeline::where('created_by', '=', $usr->creatorId())->where('id', '=', $usr->default_pipeline)->first();
+                if(!$pipeline)
+                {
+                    $pipeline = Pipeline::where('created_by', '=', $usr->creatorId())->first();
+                }
+            }
+            else
+            {
+                $pipeline = Pipeline::where('created_by', '=', $usr->creatorId())->first();
+            }
+            
+            $pipelines = Pipeline::where('created_by', '=', $usr->creatorId())->get()->pluck('name', 'id');
+            
+                
+                
+             if ($request->stage_id != '' && $request->products != '' && $date != '' && $request->user_id != '') {
+                    
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $leads     = Lead::select('leads.*')
+                        ->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')
+                        ->where('user_leads.user_id', '=', $usr->id)
+                        ->where('leads.pipeline_id', '=', $pipeline->id)
+                        ->where('leads.stage_id', '=', $request->stage_id)
+                        ->where('leads.products', '=', $request->products)
+                        ->whereDate('leads.date', '=', $parsedDate)
+                        ->where('leads.user_id', '=', $request->user_id)
+                        ->orderBy('leads.order')
+                        ->get();
+                  
+                }
+                 elseif ($request->stage_id != '' && $date != '' && $request->user_id != '') {
+                  
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $leads     = Lead::select('leads.*')
+                        ->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')
+                        ->where('user_leads.user_id', '=', $usr->id)
+                        ->where('leads.pipeline_id', '=', $pipeline->id)
+                        ->where('leads.stage_id', '=', $request->stage_id)
+                        ->whereDate('leads.date', '=', $parsedDate)
+                        ->where('leads.user_id', '=', $request->user_id)
+                        ->orderBy('leads.order')
+                        ->get();
+                  
+                }
+                 elseif ($request->stage_id != '' && $date != '') {
+                        // echo "sdfds";die;
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $leads     = Lead::select('leads.*')
+                        ->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')
+                        ->where('user_leads.user_id', '=', $usr->id)
+                        ->where('leads.pipeline_id', '=', $pipeline->id)
+                        ->where('leads.stage_id', '=', $request->stage_id)
+                        ->whereDate('leads.date', '=', $parsedDate)
+                        ->orderBy('leads.order')
+                        ->get();
+                  
+                }
+                elseif ($request->user_id != '') {
+             
+                        $leads     = Lead::select('leads.*')
+                        ->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')
+                        ->where('user_leads.user_id', '=', $usr->id)
+                        ->where('leads.pipeline_id', '=', $pipeline->id)
+                        ->where('leads.created_by', '=', $request->user_id)
+                        ->orderBy('leads.order')
+                        ->get();
+                    
+                }
+                elseif ($date != '') {
+                    
+                        // echo "date";die; 
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $leads     = Lead::select('leads.*')
+                        ->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')
+                        ->where('user_leads.user_id', '=', $usr->id)
+                        ->where('leads.pipeline_id', '=', $pipeline->id)
+                        ->whereDate('leads.date', '=', $parsedDate)
+                        ->orderBy('leads.order')
+                        ->get();
+                    
+                }elseif ($request->products != '') {
+                 
+                        $leads     = Lead::select('leads.*')
+                        ->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')
+                        ->where('user_leads.user_id', '=', $usr->id)
+                        ->where('leads.pipeline_id', '=', $pipeline->id)
+                        ->where('leads.products', '=', $request->products)
+                        ->orderBy('leads.order')
+                        ->get();
+                  
+                }
+                elseif ($request->stage_id != '') {
+                     
+                        $leads     = Lead::select('leads.*')
+                        ->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')
+                        ->where('user_leads.user_id', '=', $usr->id)
+                        ->where('leads.pipeline_id', '=', $pipeline->id)
+                        ->where('leads.stage_id', '=', $request->stage_id)
+                        ->orderBy('leads.order')
+                        ->get();
+                 
+                }
+                else {
+          
+                    $leads     = Lead::select('leads.*')
+                        ->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')
+                        ->where('user_leads.user_id', '=', $usr->id)
+                        ->where('leads.pipeline_id', '=', $pipeline->id)
+                        ->where('leads.user_id', '=', $request->user_id)
+                        ->orderBy('leads.order')
+                        ->get();
+                }
+            // $leads     = Lead::select('leads.*')
+            //             ->join('user_leads', 'user_leads.lead_id', '=', 'leads.id')
+            //             ->where('user_leads.user_id', '=', $usr->id)->where('leads.pipeline_id', '=', $pipeline->id)
+            //             ->orderBy('leads.order')
+            //             ->get();
+            $date = $parsedDate = Carbon::parse($date)->format('Y-m-d');
+            $user_id = $request->user_id;
+            $stage_id = $request->stage_id;
+            $users = User::where('type', '=', 'company')->get()->pluck('name', 'id');
+            $users->prepend(__('Assigned by'), '');
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+            $stages       = LeadStage::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $stages->prepend(__('Status'), '');
+            return view('leads.list', compact('pipelines', 'pipeline', 'leads', 'users', 'products', 'stages', 'date', 'user_id', 'stage_id'));
+        
+    }
+    
+    //searching end
      function customerNumber()
     {
         $latest = Customer::where('created_by', '=', \Auth::user()->creatorId())->latest()->first();

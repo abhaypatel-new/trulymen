@@ -148,6 +148,18 @@ class User extends Authenticatable implements MustVerifyEmail
 
         return $settings["quotation_prefix"] . sprintf("%05d", $number);
     }
+     public static function orderNumberFormat($number)
+    {
+        $settings = Utility::settings();
+
+        return $settings["order_prefix"] . sprintf("%05d", $number);
+    }
+     public static function jobNumberFormat($number)
+    {
+        $settings = Utility::settings();
+
+        return $settings["job_prefix"] . sprintf("%05d", $number);
+    }
     public function posNumberFormat($number)
     {
         $settings = Utility::settings();

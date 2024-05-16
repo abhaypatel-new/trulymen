@@ -48,7 +48,21 @@ class Lead extends Model
     {
         return $this->hasOne('App\Models\Pipeline', 'id', 'pipeline_id');
     }
-
+    public function customer()
+    {
+        return $this->belongsTo('App\Models\Customer', 'id', 'lead_id');
+    }
+    // public function customers()
+    // {
+    //     return $this->belongsTo('App\Models\Customer', 'id', 'lead_id');
+    // }
+    
+    public function owner()
+    {
+        return $this->hasOne('App\Models\User', 'id', 'owner_id');
+    }
+    
+   
     public function products()
     {
         if($this->products)

@@ -95,6 +95,7 @@ class LeadStageController extends Controller
             }
             $lead_stage              = new LeadStage();
             $lead_stage->name        = $request->name;
+            $lead_stage->color        = $request->color;
             $lead_stage->pipeline_id = $request->pipeline_id;
             $lead_stage->created_by  = \Auth::user()->ownerId();
             $lead_stage->save();
@@ -157,6 +158,7 @@ class LeadStageController extends Controller
      */
     public function update(Request $request, LeadStage $leadStage)
     {
+       
         if(\Auth::user()->can('edit lead stage'))
         {
 
@@ -178,7 +180,9 @@ class LeadStageController extends Controller
                 }
 
                 $leadStage->name        = $request->name;
+                $leadStage->color      = $request->color;
                 $leadStage->pipeline_id = $request->pipeline_id;
+                 
                 $leadStage->save();
 
                 return redirect()->route('lead_stages.index')->with('success', __('Lead Stage successfully updated!'));

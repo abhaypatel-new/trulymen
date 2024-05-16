@@ -6,6 +6,11 @@ use App\Models\Quotation;
 use Illuminate\Http\Request;
 use App\Models\PosPayment;
 use App\Models\Customer;
+use App\Models\Organization;
+use App\Models\User;
+use App\Models\SpecificationCodeMaterial;
+use App\Models\Specification;
+use App\Models\Lead;
 use App\Models\Purchase;
 use App\Models\Utility;
 use App\Models\ProductServiceCategory;
@@ -13,6 +18,7 @@ use App\Models\ProductService;
 use App\Models\WarehouseProduct;
 use App\Models\warehouse;
 use App\Models\QuotationProduct;
+use Carbon\Carbon;
 use Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
@@ -27,16 +33,242 @@ class QuotationController extends Controller
     {
         if (Auth::user()->can('manage quotation'))
         {
-            $quotations      = Quotation::where('created_by', \Auth::user()->creatorId())->with(['customer','warehouse'])->get();
+            $quotations      = Quotation::where('created_by', \Auth::user()->creatorId())->with(['customer','warehouse', 'items'])->orderBy('id', 'desc')->get();
+            // dd($quotations);
+             $customers     = Customer::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $customers->prepend('Select Customer', '');
 
-            return view('quotation.index',compact('quotations'));
+            $warehouse     = warehouse::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $warehouse->prepend('Select Warehouse', '');
+
+            // $product_services = ['--'];
+
+            $quotation_number = \Auth::user()->quotationNumberFormat($this->quotationNumber());
+            $product_services       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $customer       = User::where('created_by', '=', \Auth::user()->creatorId())->where('type', '!=', 'client')->where('type', '!=', 'company')->where('id', '!=', \Auth::user()->id)->get()->pluck('name', 'id');
+            // $lead = Lead::find($lead_id);
+            // $leadCustomer              = Customer::where('lead_id', $lead_id)->first();
+            $users = User::where('type', '=', 'company')->get()->pluck('name', 'id');
+            $users->prepend(__('Created by'), '');
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+            $status = DB::table('status')->get()->pluck('name','id');
+            $status->prepend(__('Quote Status'), '');
+          
+           
+            $date = now();
+            $chkdate = '';
+            $chkstatus = '';
+            
+           
+// dd($quotations);
+            return view('quotation.index',compact('quotations','users', 'products', 'status', 'chkstatus', 'chkdate'));
         }
         else
         {
             return redirect()->back()->with('error', __('Permission denied.'));
         }
     }
+    
+     public function order_search(Request $request)
+    {
+         $status = $request->status_id == 9?'Complete':(($request->status_id == 8)?'Open':(($request->status_id == 7)?'On-Going':'Pending'));
+        // echo $status;die;
+         $date = $request->date == 'Date'?'':$request->date;
+         $usr = \Auth::user();
+        if (Auth::user()->can('manage quotation'))
+        {
+            if ($date != '' && $request->products != '' && $request->status_id != '') {
+                    
+                       
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                        ->where('quotations.quotation_date', '=', $parsedDate)
+                        ->where('quotations.order_status', '=', $status)
+                        ->where('quotation_products.product_id', '=', $request->products)
+                        // ->orderBy('quotations.id')
+                        ->groupBy('quotations.id')
+                        ->get();
+                        // dd($quotations);
+                    
+                }
+            elseif ($date != '') {
+                    
+                       
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                        ->where('quotations.quotation_date', '=', $parsedDate)
+                        // ->orderBy('quotations.id')
+                        ->groupBy('quotations.id')
+                        ->get();
+                        // dd($quotations);
+                    
+                }elseif ($request->products != '') {
+                   
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                         ->where('quotation_products.product_id', '=', $request->products)
+                        ->orderBy('quotations.id')
+                        // ->groupBy('quotation_products.quotation_id')
+                        ->get();
+                //   dd($request->products);
+                }
+                elseif ($request->status_id != '') {
+                      
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                       
+                        ->where('quotations.order_status', '=', $status)
+                       
+                        ->orderBy('quotations.id')
+                       
+                        // ->groupBy('quotation_products.quotation_id')
+                        ->get();
+                //   dd($quotations);
+                }
+                else {
+            
+                    $quotations      = Quotation::where('created_by', \Auth::user()->creatorId())->with(['customer','warehouse', 'items'])->orderBy('id', 'desc')->get();
+                    // dd($quotations);
+                     $customers     = Customer::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+                    $customers->prepend('Select Customer', '');
+        
+                    $warehouse     = warehouse::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+                    $warehouse->prepend('Select Warehouse', '');
+        
+                    // $product_services = ['--'];
+        
+                    $quotation_number = \Auth::user()->quotationNumberFormat($this->quotationNumber());
+                    $product_services       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+                    $customer       = User::where('created_by', '=', \Auth::user()->creatorId())->where('type', '!=', 'client')->where('type', '!=', 'company')->where('id', '!=', \Auth::user()->id)->get()->pluck('name', 'id');
+                  
+                    $date = now();
 
+                }
+                
+            // $quotations      = Quotation::where(['created_by'=> \Auth::user()->creatorId(), 'status' => 1])->with(['customer','warehouse'])->get();
+             
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+            $status = DB::table('order_status')->where('parent', 1)->get()->pluck('name','id');
+            $status->prepend(__('Order Status'), '');    
+            return view('quotation.list',compact('quotations', 'status', 'products'));
+        }
+        else
+        {
+            return redirect()->back()->with('error', __('Permission denied.'));
+        }
+    }
+     public function orders()
+    {
+        if (Auth::user()->can('manage quotation'))
+        {
+            $quotations      = Quotation::where(['created_by'=> \Auth::user()->creatorId(), 'is_order' => 1])->with(['customer','warehouse'])->get();
+             
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+            $status = DB::table('order_status')->where('parent', 1)->get()->pluck('name','id');
+            $status->prepend(__('Order Status'), '');    
+            return view('quotation.list',compact('quotations', 'status', 'products'));
+        }
+        else
+        {
+            return redirect()->back()->with('error', __('Permission denied.'));
+        }
+    }
+     public function jobcards()
+    {
+        if (Auth::user()->can('manage quotation'))
+        {
+            $quotations      = Quotation::where(['created_by'=> \Auth::user()->creatorId(), 'is_jobcard' => 1])->with(['customer','warehouse'])->get();
+            $users = Customer::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $users->prepend(__('Created by'), '');
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+            return view('jobcards.list',compact('quotations', 'users', 'products'));
+        }
+        else
+        {
+            return redirect()->back()->with('error', __('Permission denied.'));
+        }
+    }
+    public function jobcard_search(Request $request)
+    {
+        if (Auth::user()->can('manage quotation'))
+        {
+             $date = $request->date == 'Date'?'':$request->date;
+            if ($date != '' && $request->products != '' && $request->user_id != '') {
+                    
+                       
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                        ->where('quotations.quotation_date', '=', $parsedDate)
+                        ->where('quotations.created_by', '=', $request->user_id)
+                        ->where('quotation_products.product_id', '=', $request->products)
+                       ->where('quotations.is_jobcard', 1)
+                        ->groupBy('quotations.id')
+                        ->get();
+                        // dd($quotations);
+                    
+                }
+            elseif ($date != '') {
+                    
+                       
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                        ->where('quotations.quotation_date', '=', $parsedDate)
+                        ->where('quotations.is_jobcard', 1)
+                        ->groupBy('quotations.id')
+                        ->get();
+                        // dd($quotations);
+                    
+                }elseif ($request->products != '') {
+                   
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                         ->where('quotation_products.product_id', '=', $request->products)
+                        ->orderBy('quotations.id')
+                        ->where('quotations.is_jobcard', 1)
+                        ->get();
+                //   dd($request->products);
+                }
+                elseif ($request->user_id != '') {
+                      
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                       
+                        ->where('quotations.created_by', '=', $request->user_id)
+                        ->where('quotations.is_jobcard', 1)
+                        ->orderBy('quotations.id')
+                       
+                        // ->groupBy('quotation_products.quotation_id')
+                        ->get();
+                //   dd($quotations);
+                }
+                else {
+            
+                     $quotations      = Quotation::where(['created_by'=> \Auth::user()->creatorId(), 'is_jobcard' => 1])->with(['customer','warehouse'])->get();
+                }
+           
+            $users = Customer::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $users->prepend(__('Created by'), '');
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+            return view('jobcards.list',compact('quotations', 'users', 'products'));
+        }
+        else
+        {
+            return redirect()->back()->with('error', __('Permission denied.'));
+        }
+    }
     /**
      * Show the form for creating a new resource.
      */
@@ -44,6 +276,8 @@ class QuotationController extends Controller
     {
         if(\Auth::user()->can('create quotation'))
         {
+            // $lead_id = request('lead_id');
+            // dd($lead_id);
             $customers     = Customer::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
             $customers->prepend('Select Customer', '');
 
@@ -53,8 +287,19 @@ class QuotationController extends Controller
             // $product_services = ['--'];
 
             $quotation_number = \Auth::user()->quotationNumberFormat($this->quotationNumber());
-
-            return view('quotation.create', compact('customers','warehouse' , 'quotation_number'));
+            $product_services       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $customer       = User::where('created_by', '=', \Auth::user()->creatorId())->where('type', '!=', 'client')->where('type', '!=', 'company')->where('id', '!=', \Auth::user()->id)->get()->pluck('name', 'id');
+            // $lead = Lead::find($lead_id);
+            // $leadCustomer              = Customer::where('lead_id', $lead_id)->first();
+            $users = Customer::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $users->prepend(__('Created by'), '');
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+           
+            $date = now();
+           
+            return view('quotation.create', compact('customer', 'customers','warehouse' , 'quotation_number', 'product_services'));
+            // return view('quotation.quotation_create', compact('customers','warehouse' , 'quotation_number', 'product_services', 'lead', 'leadCustomer', 'customer'));
         }
         else
         {
@@ -65,29 +310,41 @@ class QuotationController extends Controller
 
     public function quotationCreate(Request $request)
     {
-        $customer = Customer::find($request->customer_id);
-        $warehouse = warehouse::find($request->warehouse_id);
-        $quotation_date = $request->quotation_date;
-        $quotation_number = $request->quotation_number;
+        $lead_id = request('lead_id');
+        $customers     = Customer::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $customers->prepend('Select Customer', '');
 
+            $warehouse     = warehouse::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $warehouse->prepend('Select Warehouse', '');
+
+            // $product_services = ['--'];
+
+            $quotation_number = \Auth::user()->quotationNumberFormat($this->quotationNumber());
+            $product_services       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+             $product_services->prepend(' -- ', '');
+            $customer       = User::where('created_by', '=', \Auth::user()->creatorId())->where('type', '!=', 'client')->where('type', '!=', 'company')->where('id', '!=', \Auth::user()->id)->get()->pluck('name', 'id');
+            $lead = Lead::find($lead_id);
+            
+            $leadCustomer              = Customer::find($lead->user_id);
         
-        $warehouseProducts = WarehouseProduct::where('created_by', '=', \Auth::user()->creatorId())->where('warehouse_id',$request->warehouse_id)->get()->pluck('product_id')->toArray();
-        $product_services = ProductService::where('created_by', \Auth::user()->creatorId())->whereIn('id',$warehouseProducts)->where('type','!=', 'service')->get()->pluck('name', 'id');
-        $product_services->prepend(' -- ', '');
+        // $warehouseProducts = WarehouseProduct::where('created_by', '=', \Auth::user()->creatorId())->where('warehouse_id',$request->warehouse_id)->get()->pluck('product_id')->toArray();
+        // $product_services = ProductService::where('created_by', \Auth::user()->creatorId())->whereIn('id',$warehouseProducts)->where('type','!=', 'service')->get()->pluck('name', 'id');
+        // $product_services->prepend(' -- ', '');
 
-        return view('quotation.quotation_create', compact('customer','warehouse' ,'quotation_date' , 'quotation_number','product_services'));
+        return view('quotation.quotation_create', compact('customer','warehouse' , 'quotation_number','product_services', 'leadCustomer', 'lead'));
     }
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
+        //  dd($request->all());
         if(\Auth::user()->can('create quotation'))
         {
             $validator = \Validator::make(
                 $request->all(), [
                     'customer_id' => 'required',
-                    'warehouse_id' => 'required',
+                    'warehouse_id' => 'nullable',
                     'quotation_date' => 'required',
                     'items' => 'required',
                 ]
@@ -98,13 +355,18 @@ class QuotationController extends Controller
 
                 return redirect()->back()->with('error', $messages->first());
             }
-            $customer = Customer::where('name',$request->customer_id)->first();
+            $customer = Customer::where('id',$request->customer_id)->first();
             $warehouse = warehouse::where('name',$request->warehouse_id)->first();
-
+            
+            
+            
             $quotations                 = new Quotation();
             $quotations->quotation_id    = $this->quotationNumber();
             $quotations->customer_id      = $customer->id;
-            $quotations->warehouse_id      = $warehouse->id;
+            $quotations->lead_id      = $request->lead_id;
+            // $quotations->application      = $request->application;
+            // $quotations->warehouse_id      = $warehouse->id;
+            $quotations->warehouse_id      =2;
             $quotations->quotation_date  = $request->quotation_date;
             $quotations->status         =  0;
             $quotations->category_id    =  0;
@@ -120,12 +382,128 @@ class QuotationController extends Controller
                 $quotationItems->quotation_id    = $quotations->id;
                 $quotationItems->product_id = $products[$i]['item'];
                 $quotationItems->price      = $products[$i]['price'];
+                $quotationItems->application      = $products[$i]['application'];
                 $quotationItems->quantity   = $products[$i]['quantity'];
                 $quotationItems->tax       = $products[$i]['tax'] == null?0.00:$products[$i]['tax'];
                 $quotationItems->discount        = $products[$i]['discount'];
                 $quotationItems->save();
             }
 
+            return redirect()->route('quotation.index', $quotations->id)->with('success', __('Quotation successfully created.'));
+        }
+        else
+        {
+            return redirect()->back()->with('error', __('Permission denied.'));
+        }
+    }
+    
+     /**
+     * Store a newly created resource in storage.
+     */
+    public function quotation_store(Request $request)
+    {
+    //   dd($request->all());
+        if(\Auth::user()->can('create quotation'))
+        {
+            $validator = \Validator::make(
+                $request->all(), [
+                    'company_name' => 'required',
+                    'company_email' => 'required',
+                    'company_phone' => 'required',
+                    'plot' => 'required',
+                    'street' => 'required',
+                    'customer_id' => 'required',
+                    'area' => 'nullable',
+                    'pin' => 'required',
+                    'city' => 'required',
+                    'state' => 'required',
+                    'country' => 'required',
+                    'sender_email' => 'required',
+                    'sender_name' => 'required',
+                    'address' => 'required',
+                    'contact' => 'required',
+                    'quotation_date' => 'nullable',
+                    'items' => 'required',
+                ]
+            );
+            if($validator->fails())
+            {
+                $messages = $validator->getMessageBag();
+
+                return redirect()->back()->with('error', $messages->first());
+            }
+            // $customer = Customer::where('id',$request->customer_id)->first();
+            // $warehouse = warehouse::where('name',$request->warehouse_id)->first();
+ 
+            // Customer Store Start
+            
+                $customer                  = new Customer();
+                $customer->customer_id     = $this->customerNumber();
+                $customer->name            = $request->sender_name;
+                $customer->contact         = $request->contact;
+                $customer->email           = $request->sender_email;
+                // $customer->tax_number      =$request->tax_number;
+                $customer->created_by      = \Auth::user()->creatorId();
+                $customer->billing_name    = $request->sender_name;
+                 $customer->billing_address = $request->address;
+                $customer->shipping_address = $request->address;
+
+                $customer->lang = !empty($default_language) ? $default_language->value : '';
+
+                $customer->save();
+            
+            // Customer End
+            
+            // Organization Store Start
+            
+            $org                 = new Organization();
+            $org->name    = $request->company_name;
+            $org->email      = $request->company_email;
+            $org->phone      = $request->company_phone;
+            $org->pin      = $request->pin;
+            $org->area      = $request->area;
+            $org->street      =$request->street;
+            $org->city  = $request->city;
+            $org->state         =  $request->state;
+            $org->country    =  $request->country;
+            $org->plot    =  $request->plot;
+            $org->attention    =  $request->attention;
+           
+            $org->save();
+            
+            // Organization End
+            
+            $cust = Customer::where('id',$request->customer_id)->first();
+            $quotations                 = new Quotation();
+            $quotations->quotation_id    = $this->quotationNumber();
+            $quotations->customer_id      = $customer->id;
+            $quotations->lead_id      = $cust->lead_id;
+            $quotations->assigned_to      = $cust->id;
+            $quotations->organization_id      = $org->id;
+            // $quotations->warehouse_id      = $warehouse->id;
+            $quotations->warehouse_id      =3;
+            $quotations->quotation_date  = now()->format('Y-m-d');
+            $quotations->status         =  0;
+            $quotations->category_id    =  0;
+            $quotations->created_by     = \Auth::user()->creatorId();
+            $quotations->save();
+
+            $products = $request->items;
+
+            for($i = 0; $i < count($products); $i++)
+            {
+               
+                $quotationItems              = new QuotationProduct();
+                $quotationItems->quotation_id    = $quotations->id;
+                $quotationItems->product_id = $products[$i]['item'];
+                $quotationItems->price      = $products[$i]['price'];
+                $quotationItems->application      = $products[$i]['application'];
+                $quotationItems->quantity   = $products[$i]['quantity'];
+                $quotationItems->tax       = $products[$i]['tax'] == null?0.00:$products[$i]['tax'];
+                $quotationItems->discount        = $products[$i]['discount'];
+                $quotationItems->save();
+            }
+          
             return redirect()->route('quotation.index', $quotations->id)->with('success', __('Quotation successfully created.'));
         }
         else
@@ -150,13 +528,63 @@ class QuotationController extends Controller
             $id = Crypt::decrypt($ids);
 
             $quotation = Quotation::find($id);
+            $quotation_r = Quotation::where('is_revised',$id)->get();
+            $quotation_o = Quotation::with('items')->where(['id' => $id, 'is_order' => 1])->get();
+            $quotation_job = Quotation::with('items')->where(['id' => $id, 'is_order' => 1, 'is_jobcard' => 1])->get();
+            // dd($quotation);
+           $barcode = [
+                'barcodeType' => Auth::user()->barcodeType(),
+                'barcodeFormat' => Auth::user()->barcodeFormat(),
+            ];
+            
+            if ($quotation->created_by == \Auth::user()->creatorId()) {
+                $quotationPayment = PosPayment::where('pos_id', $quotation->id)->first();
+                $customer = $quotation->customer;
+               
+                 $iteams = $quotation->items;   
+                
+                
+                
+// dd($quotation_r);
+                return view('quotation.view', compact('quotation_r','quotation_o','quotation_job', 'quotation', 'customer', 'iteams', 'quotationPayment', 'barcode'));
+            } else {
+                return redirect()->back()->with('error', __('Permission denied.'));
+            }
+        } else {
+            return redirect()->back()->with('error', __('Permission denied.'));
+        }
+    }
+    
+    /**
+     * Display the specified resource.
+     */
+    public function orderview($ids)
+    {
 
+        if (\Auth::user()->can('show quotation') || \Auth::user()->type == 'company') {
+            try {
+                $id = Crypt::decrypt($ids);
+            } catch (\Throwable $th) {
+                return redirect()->back()->with('error', __('Quotation Not Found.'));
+            }
+
+            $id = Crypt::decrypt($ids);
+
+            $quotation = Quotation::find($id);
+            $quotation_r = Quotation::where('is_revised',$id)->get();
+            $quotation_o = Quotation::where(['id' => $id, 'is_order' => 1])->first();
+        //  dd($quotation_o);
+            $quotation_job = Quotation::where(['id' => $id, 'is_order' => 1, 'is_jobcard' => 1])->first();
+            $barcode = [
+                'barcodeType' => Auth::user()->barcodeType(),
+                'barcodeFormat' => Auth::user()->barcodeFormat(),
+            ];
             if ($quotation->created_by == \Auth::user()->creatorId()) {
                 $quotationPayment = PosPayment::where('pos_id', $quotation->id)->first();
                 $customer = $quotation->customer;
                 $iteams = $quotation->items;
 
-                return view('quotation.view', compact('quotation', 'customer', 'iteams', 'quotationPayment'));
+                return view('quotation.vieworder', compact('quotation_r','quotation_o','quotation_job', 'quotation', 'customer', 'iteams', 'quotationPayment', 'barcode'));
             } else {
                 return redirect()->back()->with('error', __('Permission denied.'));
             }
@@ -172,14 +600,30 @@ class QuotationController extends Controller
     {
         if(\Auth::user()->can('edit quotation'))
         {
-            $id   = Crypt::decrypt($ids);
+//             $id   = Crypt::decrypt($ids);
+//             $quotation     = Quotation::find($id);
+// // dd($quotation);
+//             $leadCustomer = Customer::where('id',$quotation->customer_id)->first();
+//             $warehouse = warehouse::where('id',$quotation->warehouse_id)->first();
+           
+//             // $warehouseProducts = WarehouseProduct::where('created_by', '=', \Auth::user()->creatorId())->where('warehouse_id',$quotation->warehouse_id)->get()->pluck('product_id')->toArray();
+//             $product_services = ProductService::where('created_by', \Auth::user()->creatorId())->where('type','!=', 'service')->get()->pluck('name', 'id');
+//             $product_services->prepend(' -- ', '');
+//     // dd($product_services);
+//             $quotation_number = \Auth::user()->quotationNumberFormat($this->quotationNumber());
+//             $lead = Lead::find($quotation->lead_id);
+//             // $leadCustomer              = Customer::where('customer_id', $quotation->customer_id)->first();
+
+//             return view('quotation.edit', compact('product_services','warehouse' , 'quotation_number' , 'quotation', 'lead', 'leadCustomer'));
+
+ $id   = Crypt::decrypt($ids);
             $quotation     = Quotation::find($id);
 
             $customer = Customer::where('id',$quotation->customer_id)->first();
             $warehouse = warehouse::where('id',$quotation->warehouse_id)->first();
 
             $warehouseProducts = WarehouseProduct::where('created_by', '=', \Auth::user()->creatorId())->where('warehouse_id',$quotation->warehouse_id)->get()->pluck('product_id')->toArray();
-            $product_services = ProductService::where('created_by', \Auth::user()->creatorId())->whereIn('id',$warehouseProducts)->where('type','!=', 'service')->get()->pluck('name', 'id');
+            $product_services = ProductService::where('created_by', \Auth::user()->creatorId())->where('type','!=', 'service')->get()->pluck('name', 'id');
             $product_services->prepend(' -- ', '');
 
             $quotation_number = \Auth::user()->quotationNumberFormat($this->quotationNumber());
@@ -197,9 +641,86 @@ class QuotationController extends Controller
      */
     public function update(Request $request, Quotation $quotation)
     {
+        //  dd($request->all());
         if(\Auth::user()->can('edit quotation'))
         {
+            if($request->revised == 'yes')
+            {
+        //  dd($this->quotationNumber());
+             $validator = \Validator::make(
+                    $request->all(), [
+                        'customer_id' => 'required',
+                        'quotation_date' => 'required',
+                        // 'items' => 'required',
+                    ]
+                );
+                if($validator->fails())
+                {
+                    $messages = $validator->getMessageBag();
 
+                    return redirect()->route('quotation.index')->with('error', $messages->first());
+                }
+                // dd($quotation);
+            if($request->organization_id == null)   
+            {
+            $org                 = new Organization();
+            $org->name    = $request->company_name;
+            $org->email      = $request->email;
+            $org->phone      = $request->phone;
+            $org->pin      = $request->pincode;
+            $org->area      = $request->area_name;
+            $org->street      =$request->street_name;
+            $org->city  = $request->city;
+            $org->state         =  $request->state;
+            $org->country    =  $request->country;
+            $org->plot    =  $request->ploat_no;
+            $org->attention    =  $request->attention;
+             $org->save();
+            }
+           
+                $customer = Customer::where('id',$request->customer_id)->first();
+                // $warehouse = warehouse::where('name',$request->warehouse_id)->first();
+                 $quotationR = new Quotation();
+                $quotationR->customer_id      = $customer->id;
+                $quotationR->quotation_id    = $this->quotationNumber();
+                $quotationR->organization_id    = $request->organization_id == null?$org->id:$request->organization_id;
+                $quotationR->is_revised      = $quotation->id;
+                // $quotationR->warehouse_id      = $warehouse->id;
+                $quotationR->quotation_date  = $request->quotation_date;
+                $quotationR->status         =  0;
+                $quotationR->category_id    =  0;
+                $quotationR->created_by     = \Auth::user()->creatorId();
+                //  dd($quotationR);
+                $quotationR->save();
+                $products = $request->items;
+                
+                for($i = 0; $i < count($products); $i++)
+                {
+                    
+                    $quotationProduct = null;
+
+                    if($quotationProduct == null)
+                    {
+                        $quotationProduct             = new QuotationProduct();
+                        $quotationProduct->quotation_id    = $quotationR->id;
+
+                    }
+                    if(isset($products[$i]['item']))
+                    {
+                        $quotationProduct->product_id = $products[$i]['item'];
+                    }
+
+                    $quotationProduct->quantity    = $products[$i]['quantity'];
+                    $quotationProduct->tax         = $products[$i]['tax'];
+                    $quotationProduct->discount    = $products[$i]['discount'];
+                    $quotationProduct->price       = $products[$i]['price'];
+                    $quotationProduct->description = $products[$i]['description'];
+                    $quotationProduct->save();
+// dd($quotationProduct);
+                }
+
+                return redirect()->route('quotation.index')->with('success', __('Quotation successfully updated.'));   
+            }
             if($quotation->created_by == \Auth::user()->creatorId())
             {
                 $validator = \Validator::make(
@@ -215,20 +736,21 @@ class QuotationController extends Controller
 
                     return redirect()->route('quotation.index')->with('error', $messages->first());
                 }
-                $customer = Customer::where('name',$request->customer_id)->first();
-                $warehouse = warehouse::where('name',$request->warehouse_id)->first();
+                $customer = Customer::where('id',$request->customer_id)->first();
+                // $warehouse = warehouse::where('name',$request->warehouse_id)->first();
 
                 $quotation->customer_id      = $customer->id;
-                $quotation->warehouse_id      = $warehouse->id;
+                // $quotation->warehouse_id      = $warehouse->id;
                 $quotation->quotation_date  = $request->quotation_date;
                 $quotation->status         =  0;
                 $quotation->category_id    =  0;
                 $quotation->created_by     = \Auth::user()->creatorId();
                 $quotation->save();
                 $products = $request->items;
-
+            //   dd($products);
                 for($i = 0; $i < count($products); $i++)
                 {
+                    
                     $quotationProduct = QuotationProduct::find($products[$i]['id']);
 
                     if($quotationProduct == null)
@@ -248,7 +770,7 @@ class QuotationController extends Controller
                     $quotationProduct->price       = $products[$i]['price'];
                     $quotationProduct->description = $products[$i]['description'];
                     $quotationProduct->save();
-
+// dd($quotationProduct);
                 }
 
                 return redirect()->route('quotation.index')->with('success', __('Quotation successfully updated.'));
@@ -290,6 +812,36 @@ class QuotationController extends Controller
             return redirect()->back()->with('error', __('Permission denied.'));
         }
     }
+    
+     /**
+     * Remove the specified resource from storage.
+     */
+    public function changeStatus($id, $status)
+    {
+      
+           
+                if($status == 'order')
+                {
+                   $quotation             = Quotation::find($id);
+                                $quotation->is_order = 1;
+                                $quotation->save();  
+                }else{
+                    $quotation             = Quotation::find($id);
+                                $quotation->is_jobcard = 1;
+                                $quotation->save(); 
+                }
+               
+            $st = $status == 'order'?'Quotation has been change to order successfully':'Order has been change to JobCard successfully' ; 
+            if($quotation)
+            {    
+            return redirect()->back()->with('success', __($st));
+            }
+            else
+            {
+                return redirect()->back()->with('error', __('Permission denied.'));
+            }
+        
+    }
 
     function quotationNumber()
     {
@@ -304,7 +856,52 @@ class QuotationController extends Controller
 
     public function product(Request $request)
     {
+        
+        
         $data['product']     = $product = ProductService::find($request->product_id);
+        
+        //specification listing start
+       
+        
+         $cat = Specification::with('subspecifications')->where(['priority' => 0, 'group_id' => $product->group_id])->get();
+         $material = SpecificationCodeMaterial::where(['specification_code_order_id' =>$product->specification_code_order_id])->orderBy('id', 'desc')->pluck('name')->toArray();
+        //  $productService = ProductService::find($id);
+     
+        // $all_products = ProductService::getallproducts()->count();
+
+      
+       $datas = [];
+       $htmls = '';
+        foreach ($cat as $key => $c) {
+           if($key == 0)
+           {
+             $html ='<tr>
+            <td>
+            <label for="specification-name" class="form-label" style="display: inline-block; margin-right: 100px;">' . $c->name . '</label></td>
+            <td><select class="form-control group-material-'.$key.'" data-id="' . $c->name . '" style="display: inline-block; margin-right: 25px;"><option>Select' . $c->name . '</option>';   
+           }else{
+                $html ='<tr class="d-none">
+            <td>
+            <label for="specification-name" class="form-label" style="display: inline-block; margin-right: 100px;">' . $c->name . '</label></td>
+            <td><select class="form-control group-material-'.$key.'" data-id="' . $c->name . '" disabled style="display: inline-block; margin-right: 25px;"><option>Select' . $c->name . '</option>';
+           }
+            
+            
+           
+             foreach ($c->subspecifications as $key => $cs) {
+                 if (array_search($cs->prefix, $material) !== false) {
+                   $html .='<option value="' . $cs->id . '" selected>' . $cs->prefix .': '. $cs->name. '</option>';
+                } else {
+                   $html .='<option value="' . $cs->id . '">' . $cs->prefix .': '. $cs->name. '</option>';  
+                }
+              
+             }
+             $html .='</select></td><td style="display: inline-block;">
+            <a class="btn btn-primary sm text-light enable-row"><i class="ti ti-plus"></i> Add Specification</a>
+         </td></tr>';
+               array_push($datas, $html);
+        }
+         //specification listing end
         $data['unit']        = !empty($product->unit) ? $product->unit->name : '';
         $data['taxRate']     = $taxRate = !empty($product->tax_id) ? $product->taxRate($product->tax_id) : 0;
         $data['taxes']       = !empty($product->tax_id) ? $product->tax($product->tax_id) : 0;
@@ -312,15 +909,15 @@ class QuotationController extends Controller
         $quantity            = 1;
         $taxPrice            = ($taxRate / 100) * ($salePrice * $quantity);
         $data['totalAmount'] = ($salePrice * $quantity);
-
+        $data['listing'] = $datas; 
         $product = ProductService::find($request->product_id);
         $productquantity = 0;
         
         if ($product) {
-            $productquantity = $product->getQuantity();
+            $productquantity = $product->quantity;
         }
         $data['productquantity'] = $productquantity;
-
+// dd($data);
         return json_encode($data);
     }
 
@@ -344,18 +941,18 @@ class QuotationController extends Controller
     public function items(Request $request)
     {
         $items = QuotationProduct::where('quotation_id', $request->quotation_id)->where('product_id', $request->product_id)->first();
-
+ 
         return json_encode($items);
     }
 
     public function productQuantity(Request $request)
     {
         $product = ProductService::find($request->item_id);
-        $productquantity = 0;
+        $productquantity = 1;
 
-        if ($product) {
-            $productquantity = $product->getQuantity();
-        }
+        // if ($product) {
+        //     $productquantity = $product->getQuantity();
+        // }
 
         return json_encode($productquantity);
 
@@ -595,7 +1192,7 @@ class QuotationController extends Controller
         $totalDiscount = 0;
         $taxesData = [];
         $items = [];
-
+       
         foreach ($quotation->items as $product) {
 
             $item = new \stdClass();
@@ -605,6 +1202,8 @@ class QuotationController extends Controller
             $item->discount = $product->discount;
             $item->price = $product->price;
             $item->description = $product->description;
+            $item->id = !empty($product->product()) ? $product->product()->id : '';
+            $item->sku = !empty($product->product()) ? $product->product()->sku : ''; 
             $totalQuantity += $item->quantity;
             $totalRate += $item->price;
             $totalDiscount += $item->discount;
@@ -650,15 +1249,165 @@ class QuotationController extends Controller
         } else {
             $img = asset($logo . '/' . (isset($company_logo) && !empty($company_logo) ? $company_logo : 'logo-dark.png'));
         }
-
+         $barcode = [
+                'barcodeType' => Auth::user()->barcodeType(),
+                'barcodeFormat' => Auth::user()->barcodeFormat(),
+            ];
+// dd($settings['quotation_template']);
         if ($quotation) {
             $color = '#' . $settings['quotation_color'];
             $font_color = Utility::getFontColor($color);
-
-            return view('quotation.templates.' . $settings['quotation_template'], compact('quotation', 'color', 'settings', 'customer', 'img', 'font_color'));
+ 
+            return view('quotation.templates.' . $settings['quotation_template'], compact('quotation', 'color', 'settings', 'customer', 'img', 'font_color','barcode'));
         } else {
             return redirect()->back()->with('error', __('Permission denied.'));
         }
 
+    }
+    
+     //searching start
+    
+     public function search(Request $request)
+    {
+    //  dd($request->all());
+         $date = $request->date == 'Date'?'':$request->date;
+         $usr = \Auth::user();
+         $leads = '';    
+        
+            
+            
+                
+                
+             if ($request->status_id != '' && $request->products != '' && $date != '' && $request->user_id != '') {
+                    
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                       
+                        ->where('quotations.status', '=', $request->status_id)
+                        ->whereDate('quotations.quotation_date', '=',$parsedDate)
+                        ->where('quotations.created_by', '=', $request->user_id)
+                        ->orderBy('quotations.id')
+                        ->get();
+                //   dd($quotations);
+                }
+                 elseif ($request->statis_id != '' && $date != '' && $request->user_id != '') {
+                  
+                       
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                       
+                        ->where('quotations.status', '=', $request->status_id)
+                        ->whereDate('quotations.quotation_date', '=',$parsedDate)
+                        ->where('quotations.created_by', '=', $request->user_id)
+                        ->orderBy('quotations.id')
+                        ->get();
+                  
+                }
+                 elseif ($request->status_id != '' && $date != '') {
+                        // echo "sdfds";die;
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                       
+                       
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                       
+                        ->where('quotations.status', '=', $request->status_id)
+                        ->whereDate('quotations.quotation_date', '=',$parsedDate)
+                       
+                        ->orderBy('quotations.id')
+                        ->get();
+                  
+                }
+                elseif ($request->user_id != '') {
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                        ->where('quotations.created_by', '=', $request->user_id)
+                        ->orderBy('quotations.id')
+                        ->get();
+                    
+                }
+                elseif ($date != '') {
+                    
+                       
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                        ->where('quotations.quotation_date', '=', $parsedDate)
+                        // ->orderBy('quotations.id')
+                        ->groupBy('quotations.id')
+                        ->get();
+                        // dd($quotations);
+                    
+                }elseif ($request->products != '') {
+                   
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                         ->where('quotation_products.product_id', '=', $request->products)
+                        ->orderBy('quotations.id')
+                        // ->groupBy('quotation_products.quotation_id')
+                        ->get();
+                //   dd($request->products);
+                }
+                elseif ($request->status_id != '') {
+                      
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $quotations     = Quotation::select('quotations.*')
+                        ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                       
+                        ->where('quotations.status', '=', $request->status_id)
+                       
+                        ->orderBy('quotations.id')
+                       
+                        // ->groupBy('quotation_products.quotation_id')
+                        ->get();
+                //   dd($quotations);
+                }
+                else {
+            
+                    $quotations      = Quotation::where('created_by', \Auth::user()->creatorId())->with(['customer','warehouse', 'items'])->orderBy('id', 'desc')->get();
+                    // dd($quotations);
+                     $customers     = Customer::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+                    $customers->prepend('Select Customer', '');
+        
+                    $warehouse     = warehouse::where('created_by', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+                    $warehouse->prepend('Select Warehouse', '');
+        
+                    // $product_services = ['--'];
+        
+                    $quotation_number = \Auth::user()->quotationNumberFormat($this->quotationNumber());
+                    $product_services       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+                    $customer       = User::where('created_by', '=', \Auth::user()->creatorId())->where('type', '!=', 'client')->where('type', '!=', 'company')->where('id', '!=', \Auth::user()->id)->get()->pluck('name', 'id');
+                  
+                    $date = now();
+
+                }
+            $chkdate = $request->date != 'Date'?Carbon::parse($date)->format('Y-m-d'):'Date';
+            $chkstatus = $request->status_id != ''?$request->status_id:'';
+            $products = $request->products;
+            $user_id = $request->user_id;
+            $users = User::where('type', '=', 'company')->get()->pluck('name', 'id');
+            $users->prepend(__('Created by'), '');
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+            
+          
+            return view('quotation.index',compact('quotations','users', 'products', 'chkdate', 'chkstatus', 'products', 'user_id'));
+        
+    }
+    
+    //searching end
+    
+    function customerNumber()
+    {
+        $latest = Customer::where('created_by', '=', \Auth::user()->creatorId())->latest()->first();
+        if(!$latest)
+        {
+            return 1;
+        }
+
+        return $latest->customer_id + 1;
     }
 }

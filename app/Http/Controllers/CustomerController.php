@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Exports\CustomerExport;
 use App\Imports\CustomerImport;
 use App\Models\Customer;
+use App\Models\Quotation;
 use App\Models\CustomField;
 use App\Models\Transaction;
 use App\Models\Utility;
 use Auth;
 use App\Models\User;
+use App\Models\ProductService;
 use App\Models\Plan;
+use App\Models\Lead;
+use Carbon\Carbon;
 use File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -35,9 +39,133 @@ class CustomerController extends Controller
     {
         if(\Auth::user()->can('manage customer'))
         {
-            $customers = Customer::where('created_by', \Auth::user()->creatorId())->get();
+            $customers = Customer::with('leads')->where('created_by', \Auth::user()->creatorId())->get();
+            $users = User::where('type', '=', 'company')->get()->pluck('name', 'id');
+            $users->prepend(__('Converted by'), '');
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+            $industry = DB::table('leads')->get()->pluck('industry_name','id');
+            $industry->prepend(__('Industry'), '');
+           
+            $states = DB::table('states')->where('country_id', 101)->get()->pluck('name','id');
+            $states->prepend(__('State'), '');
+            
+            return view('customer.index', compact('customers', 'users', 'products', 'industry', 'states'));
+        }
+        else
+        {
+            return redirect()->back()->with('error', __('Permission denied.'));
+        }
+    }
+     public function getCity(Request $request)
+    {
+       
+         $city = DB::table('cities')->where('state_id', $request->state_id)->get();
+        
+        return response()->json(['status' => __('City list retrived.'), 'data' => $city], 200);
+    }
+    public function search(Request $request)
+    {
+        // dd($request->all());
+        if(\Auth::user()->can('manage customer'))
+        {
+            
+         $date = $request->date == 'Date'?'':$request->date;
+         $usr = \Auth::user();
+         $leads = '';    
+        
+             if ($request->user_id != '' && $date != '') {
+                    
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $customers =  Customer::where(['created_by', $request->user_id])->whereDate('created_at', '=',$parsedDate)->get();
+                       
+                        
+                //   dd($quotations);
+                }
+                 elseif ($request->user_id != '') {
+                   
+                       
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $customers =  Customer::where('created_by', '=', $request->user_id)->get();
+                  
+                }
+                 elseif ($date != '') {
+                    
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $customers =  Customer::whereDate('created_at', '=',$parsedDate)->get();
+                  
+                }
+                 elseif ($request->industry_id != '') {
+                    
+                        $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                        $customers =  Customer::where('lead_id', '=', $request->industry_id)->get();
+                  
+                }
+                // elseif ($request->user_id != '') {
+                //         $quotations     = Quotation::select('quotations.*')
+                //         ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                //         ->where('quotations.created_by', '=', $request->user_id)
+                //         ->orderBy('quotations.id')
+                //         ->get();
+                    
+                // }
+                // elseif ($date != '') {
+                    
+                       
+                //         $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                //         $quotations     = Quotation::select('quotations.*')
+                //         ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                //         ->where('quotations.quotation_date', '=', $parsedDate)
+                //         // ->orderBy('quotations.id')
+                //         ->groupBy('quotations.id')
+                //         ->get();
+                //         // dd($quotations);
+                    
+                // }elseif ($request->products != '') {
+                   
+                //         $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                //         $quotations     = Quotation::select('quotations.*')
+                //         ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                //          ->where('quotation_products.product_id', '=', $request->products)
+                //         ->orderBy('quotations.id')
+                //         // ->groupBy('quotation_products.quotation_id')
+                //         ->get();
+                // //   dd($request->products);
+                // }
+                // elseif ($request->status_id != '') {
+                      
+                //         $parsedDate = Carbon::parse($date)->format('Y-m-d');
+                //         $quotations     = Quotation::select('quotations.*')
+                //         ->join('quotation_products', 'quotation_products.quotation_id', '=', 'quotations.id')
+                       
+                //         ->where('quotations.status', '=', $request->status_id)
+                       
+                //         ->orderBy('quotations.id')
+                       
+                //         // ->groupBy('quotation_products.quotation_id')
+                //         ->get();
+                // //   dd($quotations);
+                // }
+                else {
+            
+                     $customers = Customer::where('created_by', \Auth::user()->creatorId())->get();
 
-            return view('customer.index', compact('customers'));
+                }
+            
+            
+            
+           
+            $users = User::where('type', '=', 'company')->get()->pluck('name', 'id');
+            $users->prepend(__('Created by'), '');
+            $products       = ProductService::where('created_by', '=', \Auth::user()->creatorId())->get()->pluck('name', 'id');
+            $products->prepend(__('Product'), '');
+           
+            $states = DB::table('states')->where('country_id', 101)->get()->pluck('name','id');
+            $states->prepend(__('State'), '');
+            $industry = DB::table('leads')->get()->pluck('industry_name as name','id');
+            $industry->prepend(__('Industry'), '');
+            $industry_id =$request->industry_id; 
+            return view('customer.index', compact('customers', 'users', 'products', 'states','industry', 'industry_id'));
         }
         else
         {
@@ -99,6 +227,7 @@ class CustomerController extends Controller
                 $customer->contact         = $request->contact;
                 $customer->email           = $request->email;
                 $customer->tax_number      =$request->tax_number;
+                $customer->status      ='Pending';
                 $customer->created_by      = \Auth::user()->creatorId();
                 $customer->billing_name    = $request->billing_name;
                 $customer->billing_country = $request->billing_country;
@@ -159,8 +288,9 @@ class CustomerController extends Controller
         }
         $id       = \Crypt::decrypt($ids);
         $customer = Customer::find($id);
+        $quotations      = Quotation::where('customer_id',$id)->with(['customer','warehouse'])->get();
 
-        return view('customer.show', compact('customer'));
+        return view('customer.show', compact('customer', 'quotations'));
     }
 
 
@@ -221,8 +351,13 @@ class CustomerController extends Controller
             $customer->shipping_phone   = $request->shipping_phone;
             $customer->shipping_zip     = $request->shipping_zip;
             $customer->shipping_address = $request->shipping_address;
+            $customer->status      =$request->status;
             $customer->save();
-
+            // dd($request->all());
+            
+            $lead = Lead::find($request->lead_id);
+            $lead->industry_name      =$request->industry_name;
+            $lead->save();    
             CustomField::saveData($customer, $request->customField);
 
             return redirect()->route('customer.index')->with('success', __('Customer successfully updated.'));
