@@ -89,7 +89,7 @@
         <a href="{{route('leads.export')}}" data-bs-toggle="tooltip" title="{{__('Export')}}" class="btn btn-sm btn-primary">
             <i class="ti ti-file-export"></i>
         </a>
-        <a href="#" data-size="lg" data-url="{{ route('leads.create') }}" data-ajax-popup="true" data-bs-toggle="tooltip" title="{{__('Create New Lead')}}" data-title="{{__('Create Lead')}}" class="btn btn-sm btn-primary">
+        <a href="{{ route('leads.create') }}" title="{{__('Create New Lead')}}" data-title="{{__('Create Lead')}}" class="btn btn-sm btn-primary">
             <i class="ti ti-plus"></i>
         </a>
     </div>

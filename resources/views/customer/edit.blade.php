@@ -1,3 +1,12 @@
+@php
+$status = [
+'Pending',
+'Confirm',
+'Cancel'
+];
+$indutry = $customer->leads?$customer->leads->industry_name:'';
+$lead_id = $customer->leads?$customer->leads->id:'';
+@endphp
 {{Form::model($customer,array('route' => array('customer.update', $customer->id), 'method' => 'PUT')) }}
 <div class="modal-body">
 
@@ -31,6 +40,26 @@
 
             </div>
         </div>
+         <div class="col-lg-4 col-md-4 col-sm-6">
+            <div class="form-group">
+                <input type="hidden" value="{{$customer->lead_id}}" name="lead_id">
+                {{Form::label('industry_name',__('Company Name'),['class'=>'form-label'])}}
+                {{Form::text('industry_name',$indutry,array('class'=>'form-control'))}}
+
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-4 col-sm-6">
+            <div class="form-group">
+                {{Form::label('status',__('Status'),['class'=>'form-label'])}}
+               
+                <select class="form-control select" id="status" name="status">
+                    <option value="Pending" {{$customer->status == 'Pending'?'selected':''}}>Pending</option>
+                    <option value="Confirm" {{$customer->status == 'Confirm'?'selected':''}}>Confirm</option>
+                    <option value="Cancel" {{$customer->status == 'Cancel'?'selected':''}}>Cancel</option>
+                    </select>
+            </div>
+        </div>
+        
         @if(!$customFields->isEmpty())
             <div class="col-lg-4 col-md-4 col-sm-6">
                 <div class="tab-pane fade show" id="tab-2" role="tabpanel">

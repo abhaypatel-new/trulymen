@@ -96,6 +96,7 @@ use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PlanRequestController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductServiceCategoryController;
+use App\Http\Controllers\ProductSpecificationGroupController;
 use App\Http\Controllers\ProductServiceController;
 use App\Http\Controllers\ProductServiceUnitController;
 use App\Http\Controllers\ProductStockController;
@@ -384,12 +385,25 @@ Route::group(['middleware' => ['verified']], function () {
 
     Route::get('productservice/index', [ProductServiceController::class, 'index'])->name('productservice.index');
     Route::get('productservice/{id}/detail', [ProductServiceController::class, 'warehouseDetail'])->name('productservice.detail');
+    Route::get('productspecification/{id}/detail', [ProductSpecificationController::class, 'warehouseDetail'])->name('productspecification.detail');
     Route::post('empty-cart', [ProductServiceController::class, 'emptyCart'])->middleware(['auth', 'XSS']);
     Route::post('warehouse-empty-cart', [ProductServiceController::class, 'warehouseemptyCart'])->name('warehouse-empty-cart')->middleware(['auth', 'XSS']);
     Route::resource('productservice', ProductServiceController::class)->middleware(['auth', 'XSS', 'revalidate']);
+    Route::get('product-invoice', [ProductServiceController::class, 'productInvoice'])->name('product.invoice')->middleware(['auth', 'XSS']);
 
     //Product Stock
     Route::resource('productstock', ProductStockController::class)->middleware(['auth', 'XSS']);
+    
+     //Product Specification
+    Route::resource('productspecification', ProductSpecificationController::class)->middleware(['auth', 'XSS']);
+    
+    Route::post('product-specification/getspecification', [ProductServiceCategoryController::class, 'getSpecification'])->name('productServiceCategory.getspecification')->middleware(['auth', 'XSS', 'revalidate']);
+    
+     Route::post('product-specification/getspecificationMaterials', [ProductServiceCategoryController::class, 'getSpecificationMaterials'])->name('productServiceCategory.getspecificationMaterials')->middleware(['auth', 'XSS', 'revalidate']);
+     Route::post('product-specification/getspecificationMaterialss', [ProductServiceCategoryController::class, 'getSpecificationMaterialss'])->name('productServiceCategory.getspecificationMaterialss')->middleware(['auth', 'XSS', 'revalidate']);
+    
+     //Product Specification Group
+    Route::resource('groups', ProductSpecificationGroupController::class)->middleware(['auth', 'XSS']);
 
     //Customer
     Route::group(
@@ -738,7 +752,7 @@ Route::group(['middleware' => ['verified']], function () {
     Route::post('/deals/{id}/email', [DealController::class, 'emailStore'])->name('deals.emails.store')->middleware(['auth', 'XSS']);
 
     Route::resource('deals', DealController::class)->middleware(['auth', 'XSS']);
-
+    Route::resource('jobcards', JobCardController::class)->middleware(['auth', 'XSS']);
     // end Deal Module
 
     Route::get('/search', [UserController::class, 'search'])->name('search.json');
@@ -759,6 +773,7 @@ Route::group(['middleware' => ['verified']], function () {
     Route::resource('lead_stages', LeadStageController::class)->middleware(['auth']);
 
     Route::post('/leads/json', [LeadController::class, 'json'])->name('leads.json');
+    Route::post('/leads/search', [LeadController::class, 'search'])->name('leads.search')->middleware(['auth', 'XSS']);
     Route::post('/leads/order', [LeadController::class, 'order'])->name('leads.order')->middleware(['auth', 'XSS']);
     Route::get('/leads/list', [LeadController::class, 'lead_list'])->name('leads.list')->middleware(['auth', 'XSS']);
     Route::post('/leads/{id}/file', [LeadController::class, 'fileUpload'])->name('leads.file.upload')->middleware(['auth', 'XSS']);
@@ -1414,6 +1429,7 @@ Route::group(['middleware' => ['verified']], function () {
     // Import/Export Data Route
 
     Route::get('export/productservice', [ProductServiceController::class, 'export'])->name('productservice.export');
+    Route::get('export/productspecification', [ProductSpecificationController::class, 'export'])->name('productspecification.export');
     Route::get('import/productservice/file', [ProductServiceController::class, 'importFile'])->name('productservice.file.import');
     Route::post('import/productservice', [ProductServiceController::class, 'import'])->name('productservice.import');
     Route::get('export/customer', [CustomerController::class, 'export'])->name('customer.export');
@@ -1425,7 +1441,8 @@ Route::group(['middleware' => ['verified']], function () {
     Route::get('export/invoice', [InvoiceController::class, 'export'])->name('invoice.export');
     Route::get('export/proposal', [ProposalController::class, 'export'])->name('proposal.export');
     Route::get('export/bill', [BillController::class, 'export'])->name('bill.export');
-
+    Route::post('customer/search', [CustomerController::class, 'search'])->name('customer.search');
+    Route::get('getcities', [CustomerController::class, 'getCity'])->name('city');
     Route::get('export/employee', [EmployeeController::class, 'export'])->name('employee.export');
     Route::get('import/employee/file', [EmployeeController::class, 'importFile'])->name('employee.file.import');
     Route::post('import/employee', [EmployeeController::class, 'import'])->name('employee.import');
@@ -1463,16 +1480,26 @@ Route::group(['middleware' => ['verified']], function () {
     //POS System
 
     Route::get('quotation/items', [QuotationController::class, 'items'])->name('quotation.items');
+    Route::post('quotation/search', [QuotationController::class, 'search'])->name('quotation.search');
+    Route::post('quotation/jobcard/search', [QuotationController::class, 'jobcard_search'])->name('quotation.jobcard.search');
+    Route::post('order/search', [QuotationController::class, 'order_search'])->name('quotation.order.search');
+    Route::post('jobcard/search', [QuotationController::class, 'jobcard_search'])->name('quotation.jobcard.search');
+    Route::get('quotation/order/view/{id}', [QuotationController::class, 'orderview'])->name('quotation.order.view');
+    Route::get('quotation/Orders', [QuotationController::class, 'orders'])->name('quotation.order');
+    Route::get('quotation/jobcards', [QuotationController::class, 'jobcards'])->name('quotation.jobcard');
     Route::resource('quotation', QuotationController::class)->middleware(['auth', 'XSS', 'revalidate']);
     Route::any('quotation/create/{cid}', [QuotationController::class, 'quotationCreate'])->name('quotations.create')->middleware(['auth', 'XSS', 'revalidate']);
     Route::post('quotation/product', [QuotationController::class, 'product'])->name('quotation.product');
+    Route::post('quotation/create-new', [QuotationController::class, 'quotation_store'])->name('quotation.store.new');
     Route::post('quotation/product/destroy', [QuotationController::class, 'productDestroy'])->name('quotation.product.destroy');
+    Route::get('quotation/changestatus/{id}/{status}', [QuotationController::class, 'changeStatus'])->name('quotation.status');
     Route::get('quotation/convert/{id}', [QuotationController::class, 'convert'])->name('quotation.convert');
     Route::post('quantity/product', [QuotationController::class, 'productQuantity'])->name('product.quantity');
     Route::post('/quotation/template/setting', [QuotationController::class, 'saveQuotationTemplateSettings'])->name('quotation.template.setting');
     Route::get('quotation/preview/{template}/{color}', [QuotationController::class, 'previewQuotation'])->name('quotation.preview')->middleware(['auth', 'XSS']);
     Route::get('printview/quotation', [QuotationController::class, 'printView'])->name('quotation.printview');
     Route::get('quotation/pdf/{id}', [QuotationController::class, 'quotation'])->name('quotation.pdf')->middleware(['auth', 'XSS', 'revalidate']);
+    Route::get('quotation/customer/{id}', [QuotationController::class, 'customer_quotations'])->name('quotation.customer')->middleware(['auth', 'XSS', 'revalidate']);
 
     Route::resource('warehouse', WarehouseController::class)->middleware(['auth', 'XSS', 'revalidate']);
     Route::group(
@@ -1534,6 +1561,8 @@ Route::group(['middleware' => ['verified']], function () {
 
     Route::get('name-search-products', [ProductServiceCategoryController::class, 'searchProductsByName'])->name('name.search.products')->middleware(['auth', 'XSS']);
     Route::get('search-products', [ProductServiceController::class, 'searchProducts'])->name('search.products')->middleware(['auth', 'XSS']);
+    Route::get('product/status', [ProductServiceController::class, 'product_status'])->name('product.status')->middleware(['auth', 'XSS']);
+    Route::post('product/searching', [ProductServiceController::class, 'search_Products'])->name('search.products.new')->middleware(['auth', 'XSS']);
 
     //warehouse-transfer
     Route::resource('warehouse-transfer', WarehouseTransferController::class)->middleware(['auth', 'XSS', 'revalidate']);

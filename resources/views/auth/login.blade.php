@@ -67,7 +67,7 @@
 
                         </div>
         <div>
-            <h2 class="mb-3 f-w-600">{{ __('Login') }}</h2>
+            <h2 class="mb-3 f-w-600">{{ __('Welcome Back!') }}</h2>
         </div>
         {{ Form::open(['route' => 'login', 'method' => 'post', 'id' => 'loginForm', 'class' => 'login-form']) }}
         @if (session('status'))
@@ -77,8 +77,8 @@
     @endif
         <div class="custom-login-form">
             <div class="form-group mb-3">
-                <label class="form-label">{{ __('Email') }}</label>
-                {{ Form::text('email', null, ['class' => 'form-control', 'placeholder' => __('Enter Your Email')]) }}
+                <label class="form-label">{{ __('User Name') }}</label>
+                {{ Form::text('email', null, ['class' => 'form-control form-control-custom', 'placeholder' => __('Enter Your Username')]) }}
                 @error('email')
                     <span class="error invalid-email text-danger" role="alert">
                         <strong>{{ $message }}</strong>
@@ -87,7 +87,7 @@
             </div>
             <div class="form-group mb-3">
                 <label class="form-label">{{ __('Password') }}</label>
-                {{ Form::password('password', ['class' => 'form-control', 'placeholder' => __('Enter Your Password'), 'id' => 'input-password']) }}
+                {{ Form::password('password', ['class' => 'form-control form-control-custom', 'placeholder' => __('Enter Your Password'), 'id' => 'input-password']) }}
                 @error('password')
                     <span class="error invalid-password text-danger" role="alert">
                         <strong>{{ $message }}</strong>
@@ -96,11 +96,15 @@
             </div>
             <div class="form-group mb-4">
                 <div class="d-flex flex-wrap align-items-center justify-content-between">
-                   
-                    @if (Route::has('password.request'))
+                    <span class="d-flex align-items-center gap-1 custom-checkbox-trumen">
+                        <input type="checkbox" name="Remember_me" id="Remember_me" class="form-check-input">
+                        <label for="Remember_me" class="form-check-label">Remember me</label>
+                    </span>
+                    
+                    {{-- @if (Route::has('password.request'))
                         <span><a href="{{ route('password.request',$lang) }}"
                                 tabindex="0">{{ __('Forgot your password?') }}</a></span>
-                    @endif
+                    @endif --}}
                 </div>
             </div>
 

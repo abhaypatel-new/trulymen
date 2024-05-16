@@ -1,4 +1,16 @@
 {{ Form::open(array('url' => 'lead_stages')) }}
+@php
+ $colors = [
+        '#EACF2A',
+        '#0AA350',
+        '#101115',
+        '#693599',
+        '#449FE3',
+        '#F48A1D',
+        '#E91C2B'
+       
+    ];
+@endphp
 <div class="modal-body">
     <div class="row">
         <div class="form-group col-12">
@@ -16,7 +28,7 @@
                     <div class="col-auto">
                         <label class="colorinput">
                             <input name="color" type="radio" value="{{$color}}" class="colorinput-input">
-                            <span class="colorinput-color bg-{{$color}}"></span>
+                            <span class="colorinput-color" style="background-color: {{$color}}"></span>
                         </label>
                     </div>
                 @endforeach

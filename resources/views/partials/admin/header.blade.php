@@ -37,17 +37,19 @@
 
                 <li class="dropdown dash-h-item drp-company">
                     <a class="dash-head-link dropdown-toggle arrow-none me-0" data-bs-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false">
-                        <span class="theme-avtar">
+                       {{-- <span class="theme-avtar">
                              <img src="{{ !empty(\Auth::user()->avatar) ? $profile . \Auth::user()->avatar :  $profile.'avatar.png'}}" class="img-fluid rounded-circle">
-                        </span>
-                        <span class="hide-mob ms-2">{{__('Hi, ')}}{{\Auth::user()->name }}!</span>
-                        <i class="ti ti-chevron-down drp-arrow nocolor hide-mob"></i>
+                        </span>--}}
+                        <span class="hide-mob ms-2" style="font-weight: bolder;">{{__('Welcome, ')}}{{\Auth::user()->name }}!</span>
+                        
+                        {{--<i class="ti ti-chevron-down drp-arrow nocolor hide-mob"></i>--}}
                     </a>
+                    
                     <div class="dropdown-menu dash-h-dropdown">
 
-                        <a href="{{route('profile')}}" class="dropdown-item">
+                       {{-- <a href="{{route('profile')}}" class="dropdown-item">
                             <i class="ti ti-user text-dark"></i><span>{{__('Profile')}}</span>
-                        </a>
+                        </a>--}}
 
                         <a href="{{ route('logout') }}" onclick="event.preventDefault(); document.getElementById('frm-logout').submit();" class="dropdown-item">
                             <i class="ti ti-power text-dark"></i><span>{{__('Logout')}}</span>
@@ -73,8 +75,31 @@
                 </li>
                 @endImpersonating
                 @endif
-            
+                    <li class="dropdown dash-h-item">
+                        <label for="" class="custom-search-query-trumen">
+                            <i class="ti ti-search"></i>
+                            <input type="search" placeholder="Search your query">
+                        </label>
+                    </li>
                 @if( \Auth::user()->type !='client' && \Auth::user()->type !='super admin' )
+                    <li class="dropdown dash-h-item drp-notification">
+                        <a class="dash-head-link arrow-none me-0" href="{{ url('chats') }}" aria-haspopup="false"
+                           aria-expanded="false">
+                            <i class="ti ti-bell"></i>
+                            <span class="bg-danger dash-h-badge message-toggle-msg  message-counter custom_messanger_counter beep"> {{ $unseenCounter }}<span
+                                    class="sr-only"></span>
+                            </span>
+                        </a>
+                    </li>
+                     <li class="dropdown dash-h-item drp-notification">
+                        <a class="dash-head-link arrow-none me-0 bg-warning" href="{{route('profile')}}" aria-haspopup="false"
+                           aria-expanded="false">
+                             <i class="ti ti-user text-dark"></i>
+                            
+                        </a>
+                    </li>
+                @endif
+                {{-- @if( \Auth::user()->type !='client' && \Auth::user()->type !='super admin' )
                     <li class="dropdown dash-h-item drp-notification">
                         <a class="dash-head-link arrow-none me-0" href="{{ url('chats') }}" aria-haspopup="false"
                            aria-expanded="false">
@@ -84,9 +109,9 @@
                             </span>
                         </a>
                     </li>
-                @endif
+                @endif --}}
 
-                <li class="dropdown dash-h-item drp-language">
+                {{-- <li class="dropdown dash-h-item drp-language">
                     <a
                         class="dash-head-link dropdown-toggle arrow-none me-0"
                         data-bs-toggle="dropdown"
@@ -115,7 +140,7 @@
                                 <a class="dropdown-item text-primary" href="{{route('manage.language',[isset($lang)?$lang:'english'])}}">{{ __('Manage Language') }}</a>
                             @endif
                     </div>
-                </li>
+                </li> --}}
             </ul>
         </div>
     </div>

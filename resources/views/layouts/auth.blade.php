@@ -126,13 +126,29 @@
 </head>
 
 <body class="{{ $themeColor }}">
-    <div class="custom-login">
-        <div class="login-bg-img">
-            <img src="{{ asset('assets/images/auth/lines.png') }}" class="login-bg-1">
-            <img src="{{ asset('assets/images/auth/Hello-Trumen!.png') }}" class="login-bg-12">
-            {{--<img src="{{ asset('assets/images/auth/common.svg') }}" class="login-bg-2">--}}
+    <div class="custom-login-form-new ">
+        {{-- <div class="login-bg-img">
+            <div>
+                <img src="{{ asset('assets/images/auth/lines.png') }}" class="login-bg-1">
+            </div>
+            <div>
+                <img src="{{ asset('assets/images/auth/Hello-Trumen!.png') }}" class="login-bg-12">
+            </div>
+            <img src="{{ asset('assets/images/auth/common.svg') }}" class="login-bg-2">
+        </div> --}}
+            
+        {{-- <div class="bg-login bg-primary"></div> --}}
+        <div class="custom-login-form-new-img bg-primary">
+            {{-- <img src="{{asset('assets/images/auth/trumen-main-login-img.png')}}" alt="hello trumen"> --}}
+            <div>
+                <img src="{{ asset('assets/images/auth/lines.png') }}" class="login-bg-img-1">
+            </div>
         </div>
-        <div class="bg-login bg-primary"></div>
+        <div class="hello-trumen-text-org">
+            <h1>
+                Hello <br> {{ Utility::getValByName('title_text') ? Utility::getValByName('title_text') : config('app.name', 'ERPGO') }}!
+            </h1>
+        </div>
         <div class="custom-login-inner">
           {{-- <header class="dash-header">
                 <nav class="navbar navbar-expand-md default">
@@ -168,7 +184,7 @@
             </header>--}}
             <main class="custom-wrapper">
                 <div class="custom-row">
-                    <div class="card">
+                    <div class="">
                         @yield('content')
                     </div>
                 </div>

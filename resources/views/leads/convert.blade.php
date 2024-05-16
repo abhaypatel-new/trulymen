@@ -23,7 +23,7 @@
         </div>
         <div class="col-6 exist_client d-none form-group">
             {{ Form::label('clients', __('Client'),['class'=>'form-label']) }}
-            <select name="clients" id="clients" class="form-control select">
+            <select name="clients" id="clients" class="form-control select2" id="choices-multiple2" multiple>
                 <option value="">{{ __('Select Client') }}</option>
                 @foreach($clients as $client)
                     <option value="{{ $client->email }}" @if($lead->email == $client->email) selected @endif>{{ $client->name }} ({{ $client->email }})</option>
@@ -38,10 +38,11 @@
             {{ Form::label('client_email', __('Client Email'),['class'=>'form-label']) }}
             {{ Form::text('client_email', $lead->email, array('class' => 'form-control','required'=>'required')) }}
         </div>
-        <div class="col-6 new_client form-group">
+         {{ Form::hidden('client_password','12345678', array('class' => 'form-control')) }}
+        {{--<div class="col-6 new_client form-group">
             {{ Form::label('client_password', __('Client Password'),['class'=>'form-label']) }}
-            {{ Form::text('client_password',null, array('class' => 'form-control','required'=>'required')) }}
-        </div>
+            {{ Form::text('client_password',null, array('class' => 'form-control')) }}
+        </div>--}}
     </div>
     <div class="row px-3 text-sm">
         <div class="col-12 pl-0 pb-2 font-bold text-dark">{{__('Copy To')}}</div>

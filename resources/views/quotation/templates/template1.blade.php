@@ -166,6 +166,30 @@
     @if($settings_data['SITE_RTL']=='on')
         <link rel="stylesheet" href="{{ asset('css/bootstrap-rtl.css') }}">
     @endif
+   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script>
+       
+        $(document).ready(function() {
+           
+             var data = @json($quotation->itemData);
+
+            // Iterate through the JSON data and display it
+            $.each(data, function(key, value) {
+                console.log(value)
+            
+            JsBarcode("#barcode", value.sku, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 2,
+                height: 100,
+                displayValue: true
+            });
+            });
+        });
+        
+    </script>
+
 </head>
 
 <body class="">
@@ -224,13 +248,13 @@
                                 </tr>
                             @endforeach
                         @endif
-{{--                        <tr>--}}
-{{--                            <td colspan="2">--}}
-{{--                                <div class="view-qrcode">--}}
-{{--                                    {!! DNS2D::getBarcodeHTML(route('quotation.link.copy',\Crypt::encrypt($quotation->quotation_id)), "QRCODE",2,2) !!}--}}
-{{--                                </div>--}}
-{{--                            </td>--}}
-{{--                        </tr>--}}
+                    <tr>
+                          <td colspan="2">
+                             <canvas id="barcode"></canvas>
+                           
+                      
+                           </td>
+                       </tr>
                         </tbody>
                     </table>
                 </td>
@@ -276,6 +300,22 @@
                         @endif
                     </td>
                 @endif
+                <td class="text-right">
+                        <strong style="margin-bottom: 10px; display:block;">{{__('Ship To')}}:</strong>
+                        @if(!empty($customer->shipping_name))
+                            <p>
+                                {{!empty($customer->shipping_name)?$customer->shipping_name:''}}<br>
+                                {{!empty($customer->shipping_address)?$customer->shipping_address:''}}<br>
+                                {{!empty($customer->shipping_city)?$customer->shipping_city:'' . ', '}}<br>
+                                {{!empty($customer->shipping_state)?$customer->shipping_state:'' .', '}},
+                                {{!empty($customer->shipping_zip)?$customer->shipping_zip:''}}<br>
+                                {{!empty($customer->shipping_country)?$customer->shipping_country:''}}<br>
+                                {{!empty($customer->shipping_phone)?$customer->shipping_phone:''}}<br>
+                            </p>
+                        @else
+                            -
+                        @endif
+                    </td>
             </tr>
             </tbody>
         </table>
@@ -340,6 +380,7 @@
                 @endif
 
             </tbody>
+           
             <tfoot>
                 <tr>
                     <td colspan="4"></td>

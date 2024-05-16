@@ -127,6 +127,8 @@
                     }
                     
                     $(el.parent().parent().parent().find('.quantity')).val(1);
+                    $(el.parent().parent().parent().find('.model')).val(item.product.model);
+                    $(el.parent().parent().parent().find('.hsnCode')).val(item.product.hsn_code);
                     $(el.parent().parent().parent().find('.price')).val(item.product.sale_price);
                     $(el.parent().parent().parent().parent().find('.pro_description')).val(item.product.description);
                     console.log(el);
@@ -390,57 +392,316 @@
         });
     </script>
 @endpush
+@php
 
+@endphp
 @section('content')
     <div class="row">
         {{ Form::open(array('url' => 'quotation','class'=>'w-100')) }}
         <div class="col-12">
             <input type="hidden" name="_token" id="token" value="{{ csrf_token() }}">
+            
+            <!--Key-->
             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Key Point')}}</h5>
+                  </div>
                 <div class="card-body">
+                    
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group" id="vender-box">
-                                {{ Form::label('customer_id', __('Customer'),['class'=>'form-label']) }}
-                                {{ Form::text('customer_id', $customer->name, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
-                            </div>
-                            <div id="vender_detail" class="d-none">
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <div class="form-group">
-                                        {{ Form::label('warehouse_id', __('Warehouse'),['class'=>'form-label']) }}
-                                        {{ Form::text('warehouse_id', $warehouse->name, array('class' => 'form-control warehouse_id','required'=>'required','readonly' => 'readonly')) }}
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        {{ Form::label('quotation_date', __('Quotation Date'),['class'=>'form-label']) }}
-                                        {{Form::date('quotation_date',$quotation_date,array('class'=>'form-control','required'=>'required'))}}
-
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        {{ Form::label('quotation_number', __('Quotation Number'),['class'=>'form-label']) }}
+                                        {{ Form::label('quotation_number', __('Quote Ref No.'),['class'=>'form-label']) }}
                                         {{ Form::text('quotation_number', $quotation_number, ['class' => 'form-control', 'readonly' => 'readonly']) }}
 
                                     </div>
                                 </div>
-                            </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('quotation_date', __('Quote Date'),['class'=>'form-label']) }}
+                                       {{Form::date('quotation_date',null,array('class'=>'form-control','required'=>'required'))}}
 
+                                    </div>
+                                </div>
+                                {{--<div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('warehouse_id', __('Enquiry Ref'),['class'=>'form-label']) }}
+                                        {{ Form::select('warehouse_id', $warehouse,null, array('class' => 'form-control select warehouse_id','required'=>'required')) }}
+                                    </div>
+                                </div>--}}
+                                
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                         {{ Form::label('enquiry_ref', __('Enquiry Ref'),['class'=>'form-label']) }}
+                                         @if(!empty($lead->products()))
+                                                 @foreach($lead->sources() as $source) 
+                                                 
+                                                   {{ Form::text('enquiry_ref', $source->name, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+                                                   @if (!$loop->last)
+                                                        ,
+                                                    @endif
+                                                   @endforeach
+                                                   @else
+                                                   -
+                                                   @endif
+                                       
+                                       
 
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                            <div class="col-md-6">
+                                    <div class="form-group">
+                                    {{ Form::label('customer_id', __('GST Number'),['class'=>'form-label']) }}
+                                    {{ Form::text('gst_number', $leadCustomer->tax_number, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                    </div>
+                </div>
+                
+            <!--Organizations-->
+             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Organization Details')}}</h5>
+                  </div>
+                <div class="card-body">
+                    
+                    <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('company_name', __('Companey Name'),['class'=>'form-label']) }}
+                                        {{ Form::text('company_name', $lead->industry_name, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                     <div class="col-sm-1" style="width:0%;position: absolute;">
+                                        <div class="dropdown" style="padding: 30.5px 1px;">
+                                            <button class="btn btn-light dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false" style="border: none;border-radius: 5px 0px 0px 5px;height: 35px;">
+                                            <a href="#"><img src="{{ asset('assets/images/india.png') }}" width="30" alt="india"/> </a>
+                                            </button>
+                             
+                                        </div>
+                                     </div>
+                                    <div class="form-group">
+                                        {{ Form::label('email', __('Email'),['class'=>'form-label']) }}
+                                        {{ Form::text('email', $lead->email, ['class' => 'form-control', 'style' => 'padding-left:90px', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('phone', __('Number'),['class'=>'form-label']) }}
+                                        {{ Form::text('phone', $lead->phone, array('class' => 'form-control','required'=>'required' , 'placeholder' => __('Enter Phone'))) }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('ploat_no', __('Plot No.'),['class'=>'form-label']) }}
+                                        {{ Form::text('ploat_no', '34565456', ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                            
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('street_name', __('Street Name'),['class'=>'form-label']) }}
+                                    {{ Form::text('street_name', $leadCustomer->tax_number, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                             <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('area_name', __('Area Name'),['class'=>'form-label']) }}
+                                    {{ Form::text('area_name', $lead->name, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="hidden" value="{{$leadCustomer->lead_id}}" name="lead_id">
+                                    <div class="form-group">
+                                    {{ Form::label('pincode', __('Pincode'),['class'=>'form-label']) }}
+                                    {{ Form::text('pincode', $leadCustomer->billing_zip, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('city', __('City'),['class'=>'form-label']) }}
+                                    {{ Form::text('city', $leadCustomer->billing_city, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('state', __('State'),['class'=>'form-label']) }}
+                                    {{ Form::text('state', $leadCustomer->billing_state, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('country', __('Country'),['class'=>'form-label']) }}
+                                    {{ Form::text('country', $leadCustomer->billing_country, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('attention', __('Kind Attention'),['class'=>'form-label']) }}
+                                    {{ Form::text('attention', auth()->user()->name, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                    </div>
+                </div>    
+            </div>
+            
+            <!--Subject-->
+            
+            <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Subject')}}</h5>
+                  </div>
+                <div class="card-body">
+                    <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                       {{ Form::label('subject', __('Add Subject'),['class'=>'form-label']) }}
+                                       
+                                       <div class="form-group">{!! Form::textarea('description', $lead->notes , ['class'=>'form-control pro_description','rows'=>'2','placeholder'=>__('Description')]) !!}</div>
+
+                                    </div>
+                                </div>
                     </div>
                 </div>
             </div>
+            
+            <!--Quotation Template-->
+             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Quotation Template')}}</h5>
+                  </div>
+                <div class="card-body">
+                    <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                       {{ Form::label('quotation_template', __('Add Content'),['class'=>'form-label']) }}
+                                       <div class="form-group">{{ Form::textarea('quotation_template', 'Dear sir
 
+with reference to your enquiry for Requirment of cable flat label switch recharge (LCF-R), we are please to submit here unde our offer 
+for the same.
+
+"TRUMEN" is an ISO 9001-2015  manufacturer and experier at level control instruments and our list of instrument', ['class'=>'form-control pro_description','rows'=>'5','placeholder'=>__('Please Add Content Here...') ,'readonly' => 'readonly']) }}</div>
+
+                                    </div>
+                                </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!--Terms & Conditions-->
+             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Terms & Conditions')}}</h5>
+                  </div>
+                <div class="card-body">
+                    <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                       {{ Form::label('terms_conditions', __('Add Content'),['class'=>'form-label']) }}
+                                       <div class="form-group">{{ Form::textarea('terms_conditions', 'Add Content
+
+1.PRICES : EX WORKS, INDORE
+
+1.P & F  : EXTRA @ 2.5%
+
+1.TAXES   : GST EXTRA @ 18%
+
+1.FREIGHT   : EXTRA AT ACTUALS THROUGH YOUR APPROVED FREIGHT CARRIER.
+
+1.TRANSIT INSURANCE : EXTRA TO YOUR ACCOUNT.
+
+1.DELIVERY : WITHIN 03-04 WEEKS AFTER CONFIRMED ORDER.
+
+1.PAYMENT : 100% AGAINST PROFORMA INVOICE PRIOR TO DISPATCH.
+
+1.WARRANTY : 60 DAYS
+
+1.VALIDITY OF OFFER :WELVE MONTHS FROM THE DATE OF COMMISSIONING OR FIFTEENN  MONTHS FROM THE DATE OF SUPPLY WHICH EVER IS EARLIER.
+
+1.RELEASE OF PO : FORMAL ORDER MENTIONING YOUR VAT, TIN, CST & DISPATCH  INSTRUCTIONS.
+
+1.CANCELLATION CHARGES : 30% OF PO AMOUNT TO BE PAID IF CANCELLED AFTER  ORDER ACCEPTANCE
+
+Trust our offer is in line with your requirement. Please feel free to contact us for further assistance. We look forward to your valued order
+Thanks and Warm Regards.', ['class'=>'form-control pro_description','rows'=>'10','placeholder'=>__('Please Add Terms & Conditions Content Here...'),'readonly' => 'readonly']) }}</div>
+
+                                    </div>
+                                </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!--Sender Address-->
+             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Sendor Address')}}</h5>
+                  </div>
+                <div class="card-body">
+                    <div class="row">
+                        <input type="hidden" name="customer_id" value="{{$leadCustomer->id}}">
+                               <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('sender_name', __('Sender Name'),['class'=>'form-label']) }}
+                                        {{ Form::text('sender_name', $leadCustomer->name, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="form-group">
+                                        {{ Form::label('address', __('Address'),['class'=>'form-label']) }}
+                                        {{ Form::text('address', $leadCustomer->billing_address, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                     <div class="col-sm-1" style="width:0%;position: absolute;">
+                                        <div class="dropdown" style="padding: 30.5px 1px;">
+                                            <button class="btn btn-light dropdown-toggle" type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false" style="border: none;border-radius: 5px 0px 0px 5px;height: 35px;">
+                                            <a href="#"><img src="{{ asset('assets/images/india.png') }}" width="30" alt="india"/> </a>
+                                            </button>
+                             
+                                        </div>
+                                     </div>
+                                     
+                                    <div class="form-group">
+                                        {{ Form::label('sender_number', __('Number'),['class'=>'form-label']) }}
+                                        {{ Form::text('sender_number', $leadCustomer->contact, ['class' => 'form-control', 'style' => 'padding-left:90px', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('sender_email', __('Email'),['class'=>'form-label']) }}
+                                        {{ Form::text('sender_email', $leadCustomer->email, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('sender_website', __('Website'),['class'=>'form-label']) }}
+                                        {{ Form::text('sender_website', 'www.trumen.com', ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                    </div>
+                </div>
+            </div>
+        @php
+        $applications = [
+        'sand' => 'Sand', 'liquid' => 'Liquid', 'solid' => 'Solid'
+        ];
+        @endphp
         <div class="col-12">
             <h5 class=" d-inline-block mb-4">{{__('Product & Services')}}</h5>
             <div class="card repeater" data-value=''>
@@ -460,18 +721,21 @@
                         <table class="table mb-0" data-repeater-list="items" id="   ">
                             <thead>
                             <tr>
-                                <th>{{__('Items')}}</th>
-                                <th>{{__('Quantity')}}</th>
-                                <th>{{__('Price')}} </th>
-                                <th>{{__('Discount')}}</th>
-                                <th>{{__('Tax')}} (%)</th>
-                                <th class="text-end">{{__('Amount')}} <br><small class="text-danger font-weight-bold">{{__('after tax & discount')}}</small></th>
+                                <th>{{__('Add Product')}}</th>
+                                <th>{{__('Application')}}</th>
+                                <th>{{__('Model')}}</th>
+                                <th>{{__('HSN Code')}}</th>
+                                <th>{{__('Qty')}}</th>
+                                <th>{{__('Unit Rate')}} </th>
+                               {{-- <th>{{__('Discount')}}</th>
+                                <th>{{__('Tax')}} (%)</th>--}}
+                                <th class="text-end">{{__('Total (INR)')}} <br><small class="text-danger font-weight-bold">{{__('after tax & discount')}}</small></th>
                                 <th></th>
                             </tr>
                             </thead>
                             <tbody class="ui-sortable" data-repeater-item>
                             <tr>
-                                <td width="25%" class="form-group pt-1">
+                                <td width="20%" class="form-group pt-1">
                                     <div class="item_div">
                                         {{-- <select class="form-control item" name="item" placeholder="Select Employee">
                                             <option value="">{{ __('--') }}</option>
@@ -479,9 +743,27 @@
                                         {{ Form::select('item', $product_services,'', array('class' => 'form-control select2 item','data-url'=>route('quotation.product'),'required'=>'required')) }}
                                     </div>
                                 </td>
+                                 <td>
+                                    <div width="10%" class="form-group pt-1">
+                                        {{ Form::select('application', $applications,'null', array('class' => 'form-control select2','required'=>'required')) }}
+                                       
+                                    </div>
+                                </td>
                                 <td>
+                                    <div class="form-group">
+                                        {{ Form::text('model','', array('class' => 'form-control model','required'=>'required','placeholder'=>__('Model'),'required'=>'required')) }}
+                                       
+                                    </div>
+                                </td>
+                                 <td>
+                                    <div class="form-group">
+                                        {{ Form::text('hsn_code','', array('class' => 'form-control hsnCode','required'=>'required','placeholder'=>__('HSN Code'),'required'=>'required')) }}
+                                       
+                                    </div>
+                                </td>
+                               <td>
                                     <div class="form-group price-input input-group search-form">
-                                        {{ Form::text('quantity','', array('class' => 'form-control quantity','required'=>'required','placeholder'=>__('Qty'),'required'=>'required')) }}
+                                    {{ Form::text('quantity','', array('class' => 'form-control quantity','required'=>'required','placeholder'=>__('Qty'),'required'=>'required')) }}
                                         <span class="unit input-group-text bg-transparent"></span>
                                     </div>
                                 </td>
@@ -491,22 +773,21 @@
                                         <span class="input-group-text bg-transparent">{{\Auth::user()->currencySymbol()}}</span>
                                     </div>
                                 </td>
-                                <td>
-                                    <div class="form-group price-input input-group search-form">
-                                        {{ Form::text('discount','', array('class' => 'form-control discount','required'=>'required','placeholder'=>__('Discount'))) }}
-                                        <span class="input-group-text bg-transparent">{{\Auth::user()->currencySymbol()}}</span>
-                                    </div>
-                                </td>
-                                <td>
+                               
+                                    
+                                        {{ Form::hidden('discount','', array('class' => 'form-control discount','required'=>'required','placeholder'=>__('Discount'))) }}
+                                       
+                                 
+                                {{--<td>
                                     <div class="form-group">
                                         <div class="input-group">
-                                            <div class="taxes"></div>
+                                            <div class="taxes d-none"></div>--}}
                                             {{ Form::hidden('tax','', array('class' => 'form-control tax')) }}
                                             {{ Form::hidden('itemTaxPrice','', array('class' => 'form-control itemTaxPrice')) }}
                                             {{ Form::hidden('itemTaxRate','', array('class' => 'form-control itemTaxRate')) }}
-                                        </div>
+                                       {{-- </div>
                                     </div>
-                                </td>
+                                </td>--}}
 
                                 <td class="text-end amount">
                                     0.00

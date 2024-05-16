@@ -7,6 +7,7 @@
     {{-- start for ai module--}}
     @php
         $plan= \App\Models\Utility::getChatGPTSettings();
+        $currentTime = date('H:i:s');
     @endphp
     @if($plan->chatgpt == 1)
     <div class="text-end">
@@ -31,7 +32,7 @@
         </div>
         <div class="col-12 form-group">
             {{ Form::label('duration', __('Duration'),['class'=>'form-label']) }} <small class="font-weight-bold">{{ __(' (Format h:m:s i.e 00:35:20 means 35 Minutes and 20 Sec)') }}</small>
-            {{ Form::time('duration', null, array('class' => 'form-control','placeholder'=>'00:35:20','step'=>'2')) }}
+            {{ Form::time('duration',$currentTime, array('class' => 'form-control','placeholder'=>'00:35:20','step'=>'2')) }}
         </div>
         <div class="col-12 form-group">
             {{ Form::label('user_id', __('Assignee'),['class'=>'form-label']) }}

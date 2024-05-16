@@ -3,16 +3,40 @@
     {{__('Quotation Edit')}}
 @endsection
 @section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{route('dashboard')}}">{{__('Dashboard')}}</a></li>
-    <li class="breadcrumb-item"><a href="{{route('quotation.index')}}">{{__('Quotation')}}</a></li>
-    <li class="breadcrumb-item">{{__('quotation Edit')}}</li>
+   
 @endsection
 @push('script-page')
 
     <script src="{{asset('js/jquery-ui.min.js')}}"></script>
     <script src="{{asset('js/jquery.repeater.min.js')}}"></script>
+   
     <script>
-        var selector = "body";
+      $(document).ready(function() {
+          
+            $('.application').click(function() {
+        // Define the select options
+        var options = [
+            { value: '1', text: 'Sand' },
+            { value: '2', text: 'Liquid' },
+            { value: '3', text: 'Solid' }
+        ];
+
+        // Create the select element
+        var select = $('<select></select>').attr('id', 'applicationSelect').attr('name', 'application').addClass('form-control application');
+
+        // Populate the select with options
+        $.each(options, function(index, option) {
+            select.append($('<option></option>').attr('value', option.value).text(option.text));
+        });
+
+        // Replace the text input with the select element
+        $(this).replaceWith(select);
+    });
+    
+    // Your CSS styling goes here
+    $('.page-header-title').css('display', 'none');
+    });
+       var selector = "body";
         if ($(selector + " .repeater").length) {
             var $dragAndDrop = $("body .repeater tbody").sortable({
                 handle: '.sort-handler'
@@ -123,6 +147,46 @@
                 cache: false,
                 success: function (data) {
                     var item = JSON.parse(data);
+                      console.log(item);
+                      if(item != null)
+                      {
+                          
+                          
+                                $(el.parent().parent().parent().find('.quantity')).val(1);
+                                $(el.parent().parent().parent().find('.id')).val(item.product.id);
+                                $(el.parent().parent().parent().find('.price')).val(item.product.sale_price);
+                                $(el.parent().parent().parent().find('.model')).val(item.product.model);
+                                $(el.parent().parent().parent().find('.hsnCode')).val(item.product.hsn_code);
+                                $(el.parent().parent().parent().find('.amount')).html(item.product.sale_price);
+                               
+                                $(el.parent().parent().parent().find('.discount')).val(0);
+                                $(el.parent().parent().parent().find('.pro_description')).val(item.product.sale_price);
+                                $(el.parent().parent().parent().parent().find('.pro_description')).val(item.product.description);
+                                 var Ftax = (parseFloat(item.product.labor_charge) + parseFloat(item.product.other_cost));
+                            //   $('.totalTax').html(Ftax.toFixed(2));  
+                                 var inputs = $(".amount");
+                           var ttax = $(".totalTax");
+                           var TotalTax = 0;
+                            var subTotal = 0;
+                            for (var i = 0; i < inputs.length; i++) {
+                                subTotal = parseFloat(subTotal) + parseFloat($(inputs[i]).html());
+                            }
+                             for (var i = 0; i < ttax.length; i++) {
+                                TotalTax = parseFloat(TotalTax) + parseFloat($(ttax[i]).html());
+                            }
+                            var l = parseFloat(item.product.labor_charge);
+                            var o = parseFloat(item.product.other_cost);
+                           
+                            console.log(Ftax)
+                            console.log(subTotal)
+                             console.log("lsnot"+l)
+                              console.log("oyhrt"+o)
+                              var gtotal = Ftax+subTotal;
+                            $('.subTotal').html(subTotal.toFixed(2));
+                            // $('.totalTax').html(TotalTax.toFixed(2));
+                            $('.totalAmount').html(gtotal.toFixed(2));
+                                
+                      }
                     $.ajax({
                         url: '{{route('quotation.items')}}',
                         type: 'GET',
@@ -136,6 +200,7 @@
                         cache: false,
                         success: function (data) {
                             var quotationItems = JSON.parse(data);
+                          
                             if(quotationItems.productquantity < 1)
                     {
                         show_toastr('Error', "{{__('This product is out of stock!')}}", 'error');
@@ -143,16 +208,21 @@
                     }
 
                             if (quotationItems != null) {
+                              
                                 var amount = (quotationItems.price * quotationItems.quantity);
                                 $(el.parent().parent().parent().find('.quantity')).val(quotationItems.quantity);
+                                $(el.parent().parent().parent().find('.id')).val(quotationItems.product_id);
+                                $(el.parent().parent().parent().find('.model')).val(item.product.model);
+                                $(el.parent().parent().parent().find('.hsnCode')).val(item.product.hsn_code);
                                 $(el.parent().parent().parent().find('.price')).val(quotationItems.price);
                                 $(el.parent().parent().parent().find('.discount')).val(quotationItems.discount);
                                 $(el.parent().parent().parent().parent().find('.pro_description')).val(quotationItems.description);
 
                                 // $('.pro_description').text(purchaseItems.description);
                             } else {
-
+                                 
                                 $(el.parent().parent().parent().find('.quantity')).val(1);
+                                $(el.parent().parent().parent().find('.id')).val(quotationItems.product_id);
                                 $(el.parent().parent().parent().find('.price')).val(item.product.sale_price);
                                 $(el.parent().parent().parent().find('.discount')).val(0);
                                 $(el.parent().parent().parent().find('.pro_description')).val(item.product.sale_price);
@@ -236,6 +306,7 @@
             });
         }
         $(document).on('change', '.item', function () {
+           
             changeItem($(this));
         });
 
@@ -428,8 +499,10 @@
         })
 
         $(document).on('click', '[data-repeater-create]', function () {
+           
             $('.item :selected').each(function () {
                 var id = $(this).val();
+              
                 $(".item option[value=" + id + "]").prop("disabled", true);
             });
         })
@@ -457,6 +530,7 @@
 
             }
         });
+        
     </script>
     <script>
         $(document).on('click', '[data-repeater-delete]', function () {
@@ -467,61 +541,394 @@
 @endpush
 
 @section('content')
+
     <div class="row">
 
         {{ Form::model($quotation, array('route' => array('quotation.update', $quotation->id), 'method' => 'PUT','class'=>'w-100')) }}
-        <div class="col-12">
+       <div class="row">
+                <div class="col-lg-8 col-md-8 col-sm-8">
+                <h4 class="m-b-10 breadcrumb-item" style="padding-bottom:40px;padding-left:10px;"><a href="{{route('quotation.index')}}" class="text-dark" style="font-weight: bolder;"> <i class="bx bx-undo"></i>{{__('Edit Quotation')}}</a>
+                 </h4>
+                </div>
+                
+                <div class="col-lg-4 col-md-4 col-sm-4" style="padding-right: 20px;">
+                 <span style="float: inline-end;"><i class="ti ti-send" style="position: absolute;margin-left: 5px;margin-top: 14px;z-index: 10;color: white;"></i><input type="submit" value="{{__('Save')}}" title="{{__('Edit Quotation')}}" class="btn-sm custom-file-uploadss" style="border: none;"></span>
+                </div>
+            </div>  
+         <div class="col-12">
             <input type="hidden" name="_token" id="token" value="{{ csrf_token() }}">
+           
+            <!--Key-->
             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Key Point')}}</h5>
+                  </div>
                 <div class="card-body">
+                    
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group" id="vender-box">
-                                {{ Form::label('customer_id', __('Customer'),['class'=>'form-label']) }}
-                                {{ Form::text('customer_id', $customer->name, array('class' => 'form-control select','id'=>'vender','required'=>'required', 'readonly' => 'readonly')) }}
-                            </div>
-                            <div id="vender_detail" class="d-none">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="row">
-                                <div class="col-md-6">
-                                <div class="form-group">
-                                    {{ Form::label('warehouse_id', __('Warehouse'),['class'=>'form-label']) }}
-                                    {{ Form::text('warehouse_id', $warehouse->name, array('class' => 'form-control select','required'=>'required', 'readonly' => 'readonly')) }}
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('quotation_number', __('Quote Ref No.'),['class'=>'form-label']) }}
+                                        {{ Form::text('quotation_number', $quotation_number, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+                                       <input type="hidden" value="yes" name="revised">
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('quotation_date', __('Quote Date'),['class'=>'form-label']) }}
+                                       {{Form::date('quotation_date',null,array('class'=>'form-control','required'=>'required'))}}
+
+                                    </div>
+                                </div>
+                                {{--<div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('warehouse_id', __('Enquiry Ref'),['class'=>'form-label']) }}
+                                        {{ Form::select('warehouse_id', $warehouse,null, array('class' => 'form-control select warehouse_id','required'=>'required')) }}
+                                    </div>
+                                </div>--}}
+                                
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                         {{ Form::label('enquiry_ref', __('Enquiry Ref'),['class'=>'form-label']) }}
+                                          @if(!empty($lead))
+                                         @if(!empty($lead->products()))
+                                                 @foreach($lead->sources() as $source) 
+                                                 
+                                                   {{ Form::text('enquiry_ref', $source->name, ['class' => 'form-control']) }}
+                                                   @if (!$loop->last)
+                                                        ,
+                                                    @endif
+                                                   @endforeach
+                                                   @else
+                                                   -
+                                                   @endif
+                                                   @else
+                                                    {{ Form::text('enquiry_ref',null, ['class' => 'form-control', 'placeholder' => __('Enter Enquiry Ref No.')]) }}
+                                       @endif
+                                       
+
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-group">
-                                    {{ Form::label('quotation_date', __('Quotation Date'),['class'=>'form-label']) }}
-                                    {{Form::date('quotation_date',null,array('class'=>'form-control','required'=>'required', 'readonly' => 'readonly'))}}
-                                </div>
-                            </div>
-
-                            </div>
-                            <div class="row">
-
-
-                                <div class="col-md-6">
                                     <div class="form-group">
-                                        {{ Form::label('quotation_number', __('Quotation Number'),['class'=>'form-label']) }}
-                                        {{ Form::text('quotation_number', $quotation_number, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+                                    {{ Form::label('customer_id', __('GST Number'),['class'=>'form-label']) }}
+                                    {{ Form::text('gst_number', $customer->tax_number, array('class' => 'form-control select','required'=>'required')) }}
+                                    </div>
+                            </div>
+                    </div>
+                </div>
+                
+            <!--Organizations-->
+             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Organization Details')}}</h5>
+                  </div>
+                <div class="card-body">
+                   
+                    @if(!empty($lead))
+                    <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('company_name', __('Companey Name'),['class'=>'form-label']) }}
+                                        {{ Form::text('company_name', $lead->industry_name, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+                                         {{ Form::hidden('organization_id',null, ['class' => 'form-control']) }}
                                     </div>
                                 </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('email', __('Email'),['class'=>'form-label']) }}
+                                        {{ Form::text('email', $lead->email, ['class' => 'form-control', 'readonly' => 'readonly']) }}
 
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('phone', __('Number'),['class'=>'form-label']) }}
+                                        {{ Form::text('phone', $lead->phone, array('class' => 'form-control','required'=>'required' , 'placeholder' => __('Enter Phone'))) }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('ploat_no', __('Plot No.'),['class'=>'form-label']) }}
+                                        {{ Form::text('ploat_no', '34565456', ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                            
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('street_name', __('Street Name'),['class'=>'form-label']) }}
+                                    {{ Form::text('street_name', $customer->tax_number, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
                             </div>
-{{--                            <div class="form-check custom-checkbox mt-4">--}}
-{{--                                        <input class="form-check-input" type="checkbox" name="discount_apply" id="discount_apply" {{$purchase->discount_apply==1?'checked':''}}>--}}
-{{--                                        <label class="form-check-label" for="discount_apply">{{__('Discount Apply')}}</label>--}}
-{{--                                    </div>--}}
-                        </div>
+                             <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('area_name', __('Area Name'),['class'=>'form-label']) }}
+                                    {{ Form::text('area_name', $lead->name, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="hidden" value="{{$customer->lead_id}}" name="lead_id">
+                                    <div class="form-group">
+                                    {{ Form::label('pincode', __('Pincode'),['class'=>'form-label']) }}
+                                    {{ Form::text('pincode', $customer->billing_zip, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('city', __('City'),['class'=>'form-label']) }}
+                                    {{ Form::text('city', $customer->billing_city, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('state', __('State'),['class'=>'form-label']) }}
+                                    {{ Form::text('state', $customer->billing_state, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('country', __('Country'),['class'=>'form-label']) }}
+                                    {{ Form::text('country', $customer->billing_country, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('attention', __('Kind Attention'),['class'=>'form-label']) }}
+                                    {{ Form::text('attention', auth()->user()->name, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                    </div>
+                    @else
+                    <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('company_name', __('Companey Name'),['class'=>'form-label']) }}
+                                        {{ Form::text('company_name', $quotation->organization->name, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+                                        {{ Form::hidden('organization_id',$quotation->organization->id, ['class' => 'form-control']) }}
 
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('email', __('Email'),['class'=>'form-label']) }}
+                                        {{ Form::text('email', $quotation->organization->email, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('phone', __('Number'),['class'=>'form-label']) }}
+                                        {{ Form::text('phone', $quotation->organization->phone, array('class' => 'form-control','required'=>'required' , 'placeholder' => __('Enter Phone'))) }}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('ploat_no', __('Plot No.'),['class'=>'form-label']) }}
+                                        {{ Form::text('ploat_no',$quotation->organization->plot, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                            
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('street_name', __('Street Name'),['class'=>'form-label']) }}
+                                    {{ Form::text('street_name', $quotation->organization->street, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                             <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('area_name', __('Area Name'),['class'=>'form-label']) }}
+                                    {{ Form::text('area_name', $quotation->organization->area, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="hidden" value="{{$customer->lead_id}}" name="lead_id">
+                                    <div class="form-group">
+                                    {{ Form::label('pincode', __('Pincode'),['class'=>'form-label']) }}
+                                    {{ Form::text('pincode', $quotation->organization->pin, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('city', __('City'),['class'=>'form-label']) }}
+                                    {{ Form::text('city', $quotation->organization->city, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('state', __('State'),['class'=>'form-label']) }}
+                                    {{ Form::text('state',$quotation->organization->state, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('country', __('Country'),['class'=>'form-label']) }}
+                                    {{ Form::text('country',$quotation->organization->country, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                            <div class="col-md-4">
+                                    <div class="form-group">
+                                    {{ Form::label('attention', __('Kind Attention'),['class'=>'form-label']) }}
+                                    {{ Form::text('attention', $quotation->organization->attention, array('class' => 'form-control select','required'=>'required','readonly' => 'readonly')) }}
+                                    </div>
+                            </div>
+                    </div>
+                    @endif
+                </div>    
+            </div>
+            
+            <!--Subject-->
+            
+            <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Subject')}}</h5>
+                  </div>
+                <div class="card-body">
+                    <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                       {{ Form::label('subject', __('Add Subject'),['class'=>'form-label']) }}
+                                        @if(!empty($lead))
+                                       <div class="form-group">{!! Form::textarea('description', $lead->notes , ['class'=>'form-control pro_description','rows'=>'2','placeholder'=>__('Description')]) !!}</div>
+                                       @else
+                                       <div class="form-group">{!! Form::textarea('subject', $quotation->subject , ['class'=>'form-control pro_description','rows'=>'2','placeholder'=>__('Subject')]) !!}</div>
+                                       @endif
+
+                                    </div>
+                                </div>
                     </div>
                 </div>
             </div>
-        </div>
+            
+            <!--Quotation Template-->
+             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Quotation Template')}}</h5>
+                  </div>
+                <div class="card-body">
+                    <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                       {{ Form::label('quotation_template', __('Add Content'),['class'=>'form-label']) }}
+                                       <div class="form-group">{{ Form::textarea('quotation_template', 'Dear sir
 
-        <div class="col-12">
+with reference to your enquiry for Requirment of cable flat label switch recharge (LCF-R), we are please to submit here unde our offer 
+for the same.
+
+"TRUMEN" is an ISO 9001-2015  manufacturer and experier at level control instruments and our list of instrument', ['class'=>'form-control pro_description','rows'=>'5','placeholder'=>__('Please Add Content Here...') ,'readonly' => 'readonly']) }}</div>
+
+                                    </div>
+                                </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!--Terms & Conditions-->
+             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Terms & Conditions')}}</h5>
+                  </div>
+                <div class="card-body">
+                    <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                       {{ Form::label('terms_conditions', __('Add Content'),['class'=>'form-label']) }}
+                                       <div class="form-group">{{ Form::textarea('terms_conditions', 'Add Content
+
+1.PRICES : EX WORKS, INDORE
+
+1.P & F  : EXTRA @ 2.5%
+
+1.TAXES   : GST EXTRA @ 18%
+
+1.FREIGHT   : EXTRA AT ACTUALS THROUGH YOUR APPROVED FREIGHT CARRIER.
+
+1.TRANSIT INSURANCE : EXTRA TO YOUR ACCOUNT.
+
+1.DELIVERY : WITHIN 03-04 WEEKS AFTER CONFIRMED ORDER.
+
+1.PAYMENT : 100% AGAINST PROFORMA INVOICE PRIOR TO DISPATCH.
+
+1.WARRANTY : 60 DAYS
+
+1.VALIDITY OF OFFER :WELVE MONTHS FROM THE DATE OF COMMISSIONING OR FIFTEENN  MONTHS FROM THE DATE OF SUPPLY WHICH EVER IS EARLIER.
+
+1.RELEASE OF PO : FORMAL ORDER MENTIONING YOUR VAT, TIN, CST & DISPATCH  INSTRUCTIONS.
+
+1.CANCELLATION CHARGES : 30% OF PO AMOUNT TO BE PAID IF CANCELLED AFTER  ORDER ACCEPTANCE
+
+Trust our offer is in line with your requirement. Please feel free to contact us for further assistance. We look forward to your valued order
+Thanks and Warm Regards.', ['class'=>'form-control pro_description','rows'=>'10','placeholder'=>__('Please Add Terms & Conditions Content Here...'),'readonly' => 'readonly']) }}</div>
+
+                                    </div>
+                                </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!--Sender Address-->
+             <div class="card">
+                 <div class="card-header">
+                                      
+                     <h5>{{__('Sendor Address')}}</h5>
+                  </div>
+                <div class="card-body">
+                    <div class="row">
+                        <input type="hidden" name="customer_id" value="{{$customer->id}}">
+                               <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('sender_name', __('Sender Name'),['class'=>'form-label']) }}
+                                        {{ Form::text('sender_name', $customer->name, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-8">
+                                    <div class="form-group">
+                                        {{ Form::label('address', __('Address'),['class'=>'form-label']) }}
+                                        {{ Form::text('address', $customer->billing_address, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('sender_number', __('Number'),['class'=>'form-label']) }}
+                                        {{ Form::text('sender_number', $customer->contact, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('sender_email', __('Email'),['class'=>'form-label']) }}
+                                        {{ Form::text('sender_email', $customer->email, ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        {{ Form::label('sender_website', __('Website'),['class'=>'form-label']) }}
+                                        {{ Form::text('sender_website', 'www.trumen.com', ['class' => 'form-control', 'readonly' => 'readonly']) }}
+
+                                    </div>
+                                </div>
+                    </div>
+                </div>
+            </div>
+        @php
+       $applications = [
+        '1' => 'Sand', '2' => 'Liquid', '3' => 'Solid'
+        ];
+        @endphp
+     
+     
+    <div class="col-12">
             <h5 class="d-inline-block mb-4">{{__('Product & Services')}}</h5>
             <div class="card repeater" data-value='{!! json_encode($quotation->items) !!}'>
                 <div class="item-section py-2">
@@ -541,12 +948,14 @@
                             <thead>
                             <tr>
                                 <th>{{__('Items')}}</th>
-                                <th>{{__('Quantity')}}</th>
+                                <th>{{__('Application')}}</th>
+                                <th>{{__('Model')}}</th>
+                                <th>{{__('HSN Code')}}</th>
+                                <th>{{__('Qty')}}</th>
                                 <th>{{__('Price')}} </th>
-                                <th>{{__('Discount')}}</th>
-                                <th>{{__('Tax')}} (%)</th>  
+                                  
 
-                                <th class="text-end">{{__('Amount')}} <br><small class="text-danger font-weight-bold">{{__('after tax & discount')}}</small></th>
+                                <th class="text-end">{{__('Amount')}}</th>
                                 <th></th>
                             </tr>
                             </thead>
@@ -558,34 +967,53 @@
                                         {{ Form::select('item', $product_services,null, array('class' => 'form-control select item','data-url'=>route('quotation.product'))) }}
                                     </div>
                                 </td>
-                                <td>
-                                    <div class="form-group price-input input-group search-form">
-                                        {{ Form::text('quantity',null, array('class' => 'form-control quantity','required'=>'required','placeholder'=>__('Qty'),'required'=>'required')) }}
-                                        <span class="unit input-group-text bg-transparent"></span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="form-group price-input input-group search-form">
-                                        {{ Form::text('price',null, array('class' => 'form-control price','required'=>'required','placeholder'=>__('Price'),'required'=>'required')) }}
-                                        <span class="input-group-text bg-transparent">{{\Auth::user()->currencySymbol()}}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="form-group price-input input-group search-form">
-                                        {{ Form::text('discount',null, array('class' => 'form-control discount','required'=>'required','placeholder'=>__('Discount'))) }}
-                                        <span class="input-group-text bg-transparent">{{\Auth::user()->currencySymbol()}}</span>
+                                 <td>
+                                    <div width="10%" class="form-group">
+                                        
+                                         {{ Form::text('application',null, array('class' => 'form-control application', 'id' => 'applicationInput')) }}
+                                       
+                                       
                                     </div>
                                 </td>
                                 <td>
                                     <div class="form-group">
-                                        <div class="input-group">
+                                        {{ Form::text('model',null, array('class' => 'form-control model','required'=>'required','placeholder'=>__('Model'),'required'=>'required')) }}
+                                       
+                                    </div>
+                                </td>
+                                 <td>
+                                    <div class="form-group">
+                                        {{ Form::text('hsn_code',null, array('class' => 'form-control hsnCode','required'=>'required','placeholder'=>__('HSN Code'),'required'=>'required')) }}
+                                       
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="form-group price-input input-group search-form" style="width: 50px;">
+                                        {{ Form::text('quantity',null, array('class' => 'form-control quantity','required'=>'required','placeholder'=>__('Qty'),'required'=>'required')) }}
+                                       
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="form-group price-input input-group search-form" style="width: 132px;">
+                                        {{ Form::text('price',null, array('class' => 'form-control price','required'=>'required','placeholder'=>__('Price'),'required'=>'required')) }}
+                                        <span class="input-group-text bg-transparent">{{\Auth::user()->currencySymbol()}}</span>
+                                    </div>
+                                </td>
+                                 {{ Form::hidden('discount',null, array('class' => 'form-control discount','required'=>'required','placeholder'=>__('Discount'))) }}
+                               {{-- <td>
+                                    <div class="form-group price-input input-group search-form">
+                                        {{ Form::text('discount',null, array('class' => 'form-control discount','required'=>'required','placeholder'=>__('Discount'))) }}
+                                        <span class="input-group-text bg-transparent">{{\Auth::user()->currencySymbol()}}</span>
+                                    </div>
+                                </td>--}}
+                                
+                                   
                                             <div class="taxes"></div>
                                             {{ Form::hidden('tax','', array('class' => 'form-control tax')) }}
                                             {{ Form::hidden('itemTaxPrice','', array('class' => 'form-control itemTaxPrice')) }}
                                             {{ Form::hidden('itemTaxRate','', array('class' => 'form-control itemTaxRate')) }}
-                                        </div>
-                                    </div>
-                                </td>
+                                        
+                                
 
                                 <td class="text-end amount">
                                     0.00
@@ -639,7 +1067,7 @@
                                 <td>&nbsp;</td>
                                 <td>&nbsp;</td>
                                 <td>&nbsp;</td>
-                                <td class="blue-text"><strong>{{__('Total Amount')}} ({{\Auth::user()->currencySymbol()}})</strong></td>
+                                <td class="blue-text"><strong>{{__('Total Amount')}} ({{\Auth::user()->currencySymbol()}})</strong><br><small class="text-danger font-weight-bold">{{__('Labor and Other charges included')}}</small></td>
                                 <td class="blue-text text-end totalAmount">0.00</td>
                                 <td></td>
                             </tr>
@@ -650,10 +1078,10 @@
             </div>
         </div>
 
-        <div class="modal-footer">
+       {{-- <div class="modal-footer">
             <input type="button" value="{{__('Cancel')}}" onclick="location.href = '{{route("quotation.index")}}';" class="btn btn-light">
             <input type="submit" value="{{__('Update')}}" class="btn btn-primary">
-        </div>
+        </div>--}}
         {{ Form::close() }}
     </div>
 @endsection
